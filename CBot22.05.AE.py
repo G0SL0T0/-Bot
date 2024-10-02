@@ -8,10 +8,11 @@ import random
 import json
 import time
 import datetime
+import os
 
 # Необходимые переменные
 message_count = {}
-TOP_LIST_FILE = "top_list.json"
+TOP_LIST_FILE = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/top_list.json"
 prefix = "!"
 random_responses=[
     "Неактуально"
@@ -19,11 +20,129 @@ random_responses=[
 # бот
 bot = commands.Bot(intents=discord.Intents.all(), case_insensitive=True, command_prefix=prefix)
 
-ticket_data_file = "tickets.json"
+ticket_data_file = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/tickets.json"
 rewards = {
     100: {"Tier 4": 0.5, "Tier 5": 0.5},
     50: {"Tier 3": 1.0}
 }
+
+
+#Классы
+class Bank:
+    def __init__(self, filename):
+        self.filename = filename
+        self.balances = self.load_json()
+        self.saved = False
+
+    def load_json(self):
+        try:
+            with open(self.filename, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            self.create_file()
+            return {}
+        except json.JSONDecodeError:
+            return {}
+
+    def save_json(self):
+        with open(self.filename, 'w') as f:
+            json.dump(self.balances, f, indent=4)
+
+    def create_file(self):
+        with open(self.filename, 'w') as f:
+            json.dump({}, f, indent=4)
+
+    def get_balance(self, user_id):
+        return self.balances.get(str(user_id), {'balance': 0, 'username': '', 'user_id': user_id})['balance']
+
+    def set_balance(self, user_id, balance):
+        user_data = self.get_user_data(user_id)
+        if user_data:
+            self.balances[str(user_id)] = {'balance': balance, 'username': user_data['username'], 'user_id': user_id}
+        else:
+            self.balances[str(user_id)] = {'balance': balance, 'username': '', 'user_id': user_id}
+        self.save_json()
+
+    def increment_balance(self, user_id, amount):
+        balance = self.get_balance(user_id)
+        self.set_balance(user_id, balance + amount)
+        self.saved = False  # Сбрасываем флаг
+
+    def decrement_balance(self, user_id, amount):
+        balance = self.get_balance(user_id)
+        if balance >= amount:
+            self.set_balance(user_id, balance - amount)
+        else:
+            raise ValueError("Insufficient funds")
+
+    def update_balance(self, user_id, amount):
+        self.increment_balance(user_id, amount)
+
+    def get_user_data(self, user_id):
+        return self.balances.get(str(user_id), {'balance': 0, 'username': '', 'user_id': user_id})
+
+    def set_user_data(self, user_id, data):
+        self.balances[str(user_id)] = data
+        self.save_json()
+
+class BankAccount:
+    def __init__(self, filename, owner, balance=0):
+        self.filename = filename
+        self.owner = owner
+        self.balance = balance
+        self.bank = Bank(filename)
+        try:
+            self.load_data()
+        except Exception as e:
+            print(f"Ошибка при загрузке данных: {e}")
+
+    def load_data(self):
+        user_data = self.bank.get_user_data(self.owner)
+        if user_data['balance'] == 0 and user_data['username'] == '':
+            self.create_account()
+        else:
+            self.balance = user_data['balance']
+
+    def create_account(self):
+        self.bank.set_user_data(self.owner, {'balance': 0, 'username': '', 'user_id': self.owner})
+        self.bank.save_json()
+
+    def deposit(self, amount):
+        print("Трабл строка 1 депозит")
+        self.balance += amount
+        print("Трабл строка 2 депозит")
+        self.bank.set_balance(self.owner, self.balance)
+        print("Трабл строка 3 депозит")
+        self.bank.save_json()
+        print("Трабл строка 4 депозит")
+        return self.balance
+
+    def withdraw(self, amount):
+        print("Трабл запуска виддро")
+        if amount > self.balance:
+            print("Трабл условие ведра")
+            raise ValueError("Insufficient funds")
+        print("Трабл условие офф")
+        self.balance -= amount
+        print("Трабл строка 1 ведро")
+        self.bank.set_balance(self.owner, self.balance)
+        print("Трабл строка 2 ведно")
+        self.bank.save_json()
+        print("Трабл строка 3 ведро")
+        return self.balance
+
+    def get_balance(self):
+        return self.bank.get_balance(self.owner)
+
+    def give_jrun(self, user_id, amount=1):
+        print("Трабл гив жрун")
+        self.bank.increment_balance(user_id, amount)
+        print("Трабл жрун строка 1")
+        self.bank.save_json()
+        print("Трабл жрун конец")
+
+
+
 # Функции
 def load_top_list():
     try:
@@ -51,22 +170,6 @@ def calculate_price():
     print('4');
     return 50000 + price_increment
 
-def check_balance_file(user_id):
-    try:
-        with open('Jrun_balance.json', 'r') as f:
-            balances = json.load(f)
-    except FileNotFoundError:
-        balances = {}
-    except json.JSONDecodeError:
-        balances = {}
-        with open('Jrun_balance.json', 'w') as f:
-            json.dump(balances, f, indent=4)
-    if str(user_id) not in balances:
-        balances[str(user_id)] = {'balance': 0, 'username': '', 'user_id': user_id}
-        with open('Jrun_balance.json', 'w') as f:
-            json.dump(balances, f, indent=4)
-    return balances
-
 async def convert_to_member(ctx, argument):
     try:
         member = await commands.MemberConverter().convert(ctx, argument)
@@ -77,26 +180,26 @@ async def convert_to_member(ctx, argument):
     return member
 
 def check_last_reward_time(user_id):
-    if not os.path.exists('rewards.json'):
-        with open('rewards.json', 'w') as f:
+    if not os.path.exists('JavaS/rewards.json'):
+        with open('JavaS/rewards.json', 'w') as f:
             json.dump({}, f, indent=4)
     try:
-        with open('rewards.json', 'r') as f:
+        with open('JavaS/rewards.json', 'r') as f:
             rewards = json.load(f)
     except json.JSONDecodeError:
         rewards = {}
-        with open('rewards.json', 'w') as f:
+        with open('JavaS/rewards.json', 'w') as f:
             json.dump(rewards, f, indent=4)
     if str(user_id) not in rewards:
         rewards[str(user_id)] = {'last_reward_time': 0}
-        with open('rewards.json', 'w') as f:
+        with open('JavaS/rewards.json', 'w') as f:
             json.dump(rewards, f, indent=4)
     return rewards[str(user_id)]['last_reward_time']
 
 def update_last_reward_time(user_id):
     rewards = check_last_reward_time(user_id)
     rewards[str(user_id)] = {'last_reward_time': time.time()}
-    with open('rewards.json', 'w') as f:
+    with open('JavaS/rewards.json', 'w') as f:
         json.dump(rewards, f, indent=4)
 
 def can_receive_reward(user_id):
@@ -127,7 +230,7 @@ def get_today():
 
 def read_data():
     try:
-        with open('percentages.json', 'r') as file:
+        with open('JavaS/percentages.json', 'r') as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
@@ -136,25 +239,11 @@ def read_data():
         return {}
 
 def write_data(data):
-    with open('percentages.json', 'w') as file:
+    with open('JavaS/percentages.json', 'w') as file:
         json.dump(data, file, indent=4)
 
-async def give_jrun(ctx, member, amount=1):
-    print('Кто-то получил жрун')
-    balances = check_balance_file(member.id)
-    if str(member.id) in balances:
-        user_balance = balances[str(member.id)]
-        user_balance['balance'] += amount
-        balances[str(member.id)] = user_balance
-        with open('Jrun_balance.json', 'w') as f:
-            json.dump(balances, f, indent=4)
-        await ctx.send(f"Пользователю {member.mention} начислено {amount} Жрунов.")
-        print(f"{member.mention} получил {amount} Жрунов.")
-    else:
-        await ctx.send("У пользователя нет баланса.")
-
 def update_last_reward_time(member_id):
-    with open('rewards.json', 'r+') as f:
+    with open('JavaS/rewards.json', 'r+') as f:
         try:
             rewards = json.load(f)
         except json.JSONDecodeError:
@@ -205,23 +294,7 @@ def draw_lottery(user_id):
 
     return "К сожалению, вы ничего не выиграли."
 
-def update_balance_and_react(message):
-    balances = check_balance_file(message.author.id)
-    role_names = [role.name for role in message.author.roles]
-    if "Огонь" in role_names:
-        balances[str(message.author.id)]['balance'] += 2
-    else:
-        balances[str(message.author.id)]['balance'] += 1
-
-    if "сфера" in role_names or "берсерк" in role_names:
-        balances[str(message.author.id)]['balance'] += 1
-
-    with open('Jrun_balance.json', 'w') as f:
-        json.dump(balances, f, indent=4)
-
-    return balances
-
-
+#запуск Бота
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} успешно запущен")
@@ -249,40 +322,22 @@ async def on_message(message):
     message_count[user_id]["last_message_time"] = current_time
     message_count[user_id]["count"] += 1
 
-#2
+# Ошибка в написанни команды
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         response = random.choice(["Эта команда неактуальна"])
         await ctx.send(response)
 
-# Жрун (Евриыван)
-@bot.event
-async def on_raw_reaction_add(payload):
-    channel_id = 951816149291659274
-    if payload.channel_id == channel_id:
-        guild = bot.get_guild(payload.guild_id)
-        member = guild.get_member(payload.user_id)
-        if "Огонь" in [role.name for role in member.roles]:
-            await give_jrun(member, amount=2)
-        else:
-            if check_last_reward_time(member.id) is None or (
-                    datetime.utcnow() - check_last_reward_time(member.id)).days >= 1:
-                await give_jrun(member)
-                update_last_reward_time(member.id)
-
+# Ответ на любое сообщение
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
-    if can_receive_reward(message.author.id):
-        balances = update_balance_and_react(message)
-        await message.add_reaction('🔥')
-        update_last_reward_time(message.author.id)
 
     await bot.process_commands(message)
 
-# Время
+# Команда - Время
 @bot.command(name='Время')
 async def get_time(ctx):
     time1 = pytz.timezone('Asia/Sakhalin')
@@ -329,7 +384,6 @@ async def stream_info(ctx):
 @bot.command(name='дота')
 async def play_dota(ctx):
     await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
-
 # Команда - Танки
 @bot.command(name='танки')
 async def play_tanki(ctx):
@@ -422,7 +476,8 @@ async def plus_asses(ctx, amount: int, user_number: int):
     save_top_list(top_list)
     await ctx.send(f"Успешно добавлено {amount} жопок к {top_list[user_number - 1]['никнейм']}. Теперь у него {top_list[user_number - 1]['жопки']} жопок.")
 
-#пнуть
+
+# пнуть
 @bot.command()
 async def пнуть(ctx, *, user: discord.Member):
     if user == ctx.author:
@@ -447,6 +502,8 @@ async def пнуть(ctx, *, user: discord.Member):
             await send_private_message(user, f"Вас пнули!")
             await ctx.send(f"{user.display_name} пнут!")
 
+
+# Лотерейка - test version
 @bot.command(name='add_tickets')
 @commands.has_any_role("Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк")
 async def add_tickets_command(ctx, member: discord.Member, amount: int):
@@ -456,41 +513,100 @@ async def add_tickets_command(ctx, member: discord.Member, amount: int):
     add_tickets(member.id, amount)
     await ctx.send(f"{amount} билетов добавлено пользователю {member.mention}.")
 
+# Мои билетики
 @bot.command(name='my_tickets')
 async def my_tickets_command(ctx):
     tickets = get_user_tickets(ctx.author.id)
     await ctx.send(f"У вас {tickets} билетов.")
 
+# крутка билетиков
 @bot.command(name='lottery')
 async def lottery_command(ctx):
     result = draw_lottery(ctx.author.id)
     await ctx.send(result)
 
-# Команда баланса
+# HELP команды жрунов
 @bot.command()
-async def баланс(ctx, member: discord.Member = None):
-    if member is None:
-        member = ctx.author
+async def help_jrun(ctx):
+    guide = """
+**Команды для работы с Жрунами**
+
+**Выдать Жруны**
+`!выдать <пользователь> <количество>` - начислить Жруны пользователю
+
+**Проверить баланс**
+`!баланс <пользователь>` - проверить баланс пользователя
+
+**Положить Жруны**
+`!положить <пользователь> <количество>` - положить Жруны на счет пользователя
+
+**Снять Жруны**
+`!снять <пользователь> <количество>` - снять Жруны с счета пользователя
+
+**Примеры**
+`!выдать @user 10` - начислить 10 Жрунов пользователю @user
+`!баланс @user` - проверить баланс пользователя @user
+`!положить @user 5` - положить 5 Жрунов на счет пользователя @user
+`!снять @user 3` - снять 3 Жруны с счета пользователя @user
+"""
+    await ctx.send(guide)
+
+#Bank Sistem Жруны!
+
+@bot.command(name='новый_счет')
+async def new_account(ctx, user: discord.Member):
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    user_data = bank.get_user_data(user.id)
+    if user_data['balance'] == 0 and user_data['username'] == '':
+        bank.set_user_data(user.id, {'balance': 0, 'username': user.name, 'user_id': user.id})
+        bank.save_json()
+        await ctx.send(f'Счет создан для пользователя {user.mention}!')
+    else:
+        await ctx.send(f'Пользователь {user.mention} уже имеет счет!')
+
+@bot.command(name='выдать')
+async def give_jrun(ctx, user: discord.Member, amount: int):
+    print("Трабл Запуска")
     try:
-        balances = check_balance_file(member.id)
-        balance = balances[str(member.id)]['balance']
-        await ctx.send(f"Баланс {member.display_name}: {balance} жрунов")
+        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+        print("Трабл строка 1")
+        if account.balance is not None:
+            account.give_jrun(user.id, amount)
+            print("Трабл строка 2")
+            await ctx.send(f'Начислено {amount} Жрунов пользователю {user.mention}!')
+        else:
+            await ctx.send(f'Пользователь {user.mention} не имеет счета!')
     except Exception as e:
-        await ctx.send(f"Произошла ошибка при выполнении команды: {e}")
+        await ctx.send(f'Ошибка: {e}')
 
-@баланс.error
-async def баланс_error(ctx, error):
-    await ctx.send(f"Произошла ошибка при выполнении команды: {error}")
+@bot.command(name='положить')
+async def deposit(ctx, user: discord.Member, amount: int):
+    print("Трабл запуска")
+    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+    print("Трабл строка 1")
+    account.deposit(amount)
+    print("Трабл строка 2")
+    await ctx.send(f'Начислено {amount} Жрунов на счет пользователя {user.mention}!')
 
-@bot.command()
-@commands.has_any_role("Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк")
-async def получение_жрунов(ctx, member: discord.Member, amount: int = 1):
-    await give_jrun(ctx, member, amount)
-@получение_жрунов.error
-async def получение_жрунов_error(ctx, error):
-    if isinstance(error, commands.MissingAnyRole):
-        await ctx.send("У вас нет прав для использования этой команды.")
+@bot.command(name='снять')
+async def withdraw(ctx, user: discord.Member, amount: int):
+    print("Трабл запуска")
+    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+    print("Трабл строка 1")
+    try:
+        account.withdraw(amount)
+        print("Трабл строка 2")
+        await ctx.send(f'Снято {amount} Жрунов с счета пользователя {user.mention}!')
+        print("Трабл строка 3")
+    except ValueError:
+        print("Трабл финал")
+        await ctx.send('Недостаточно средств на счете!')
 
+@bot.command(name='баланс')
+async def balance(ctx, user: discord.Member):
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(user.id)
+    await ctx.send(f'Баланс пользователя {user.mention}: {balance} Жрунов')
 #
 
 # Токен
