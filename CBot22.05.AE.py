@@ -108,27 +108,20 @@ class BankAccount:
         self.bank.save_json()
 
     def deposit(self, amount):
-        print("Трабл строка 1 депозит")
         self.balance += amount
-        print("Трабл строка 2 депозит")
         self.bank.set_balance(self.owner, self.balance)
-        print("Трабл строка 3 депозит")
         self.bank.save_json()
         print("Трабл строка 4 депозит")
         return self.balance
 
     def withdraw(self, amount):
-        print("Трабл запуска виддро")
         if amount > self.balance:
             print("Трабл условие ведра")
             raise ValueError("Insufficient funds")
-        print("Трабл условие офф")
         self.balance -= amount
-        print("Трабл строка 1 ведро")
         self.bank.set_balance(self.owner, self.balance)
-        print("Трабл строка 2 ведно")
         self.bank.save_json()
-        print("Трабл строка 3 ведро")
+
         return self.balance
 
     def get_balance(self):
@@ -137,9 +130,8 @@ class BankAccount:
     def give_jrun(self, user_id, amount=1):
         print("Трабл гив жрун")
         self.bank.increment_balance(user_id, amount)
-        print("Трабл жрун строка 1")
         self.bank.save_json()
-        print("Трабл жрун конец")
+
 
 
 
@@ -293,6 +285,12 @@ def draw_lottery(user_id):
             return f"Поздравляем! Вы выиграли {prize}!"
 
     return "К сожалению, вы ничего не выиграли."
+
+def has_moderator_role(user):
+    moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
+    for role in user.roles:
+        if role.name in moderator_roles:
+            return True
 
 #запуск Бота
 @bot.event
@@ -532,82 +530,112 @@ async def help_jrun(ctx):
 **Команды для работы с Жрунами**
 
 **Выдать Жруны**
-`!выдать <пользователь> <количество>` - начислить Жруны пользователю
+`!mod_выдать <пользователь> <количество>` - начислить Жруны пользователю
 
 **Проверить баланс**
-`!баланс <пользователь>` - проверить баланс пользователя
+`!mod_баланс <пользователь>` - проверить баланс пользователя
 
 **Положить Жруны**
-`!положить <пользователь> <количество>` - положить Жруны на счет пользователя
+`!mod_положить <пользователь> <количество>` - положить Жруны на счет пользователя
 
 **Снять Жруны**
-`!снять <пользователь> <количество>` - снять Жруны с счета пользователя
+`!mod_снять <пользователь> <количество>` - снять Жруны с счета пользователя
 
-**Примеры**
-`!выдать @user 10` - начислить 10 Жрунов пользователю @user
-`!баланс @user` - проверить баланс пользователя @user
-`!положить @user 5` - положить 5 Жрунов на счет пользователя @user
-`!снять @user 3` - снять 3 Жруны с счета пользователя @user
+
 """
     await ctx.send(guide)
 
 #Bank Sistem Жруны!
 
-@bot.command(name='новый_счет')
-async def new_account(ctx, user: discord.Member):
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    user_data = bank.get_user_data(user.id)
-    if user_data['balance'] == 0 and user_data['username'] == '':
-        bank.set_user_data(user.id, {'balance': 0, 'username': user.name, 'user_id': user.id})
-        bank.save_json()
-        await ctx.send(f'Счет создан для пользователя {user.mention}!')
-    else:
-        await ctx.send(f'Пользователь {user.mention} уже имеет счет!')
+#@bot.command(name='выдать')
+#async def give_jrun(ctx, user: discord.Member, amount: int):
+#    print("Трабл Запуска")
+#    try:
+#        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+#        print("Трабл строка 1")
+#        if account.balance is not None:
+#            account.give_jrun(user.id, amount)
+#            print("Трабл строка 2")
+#            await ctx.send(f'Начислено {amount} Жрунов пользователю {user.mention}!')
+#        else:
+#            await ctx.send(f'Пользователь {user.mention} не имеет счета!')
+#    except Exception as e:
+#        await ctx.send(f'Ошибка: {e}')
 
-@bot.command(name='выдать')
-async def give_jrun(ctx, user: discord.Member, amount: int):
-    print("Трабл Запуска")
+#@bot.command(name='снять')
+#async def withdraw(ctx, user: discord.Member, amount: int):
+#    print("Трабл запуска")
+#    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+#    print("Трабл строка 1")
+#    try:
+#        account.withdraw(amount)
+#        print("Трабл строка 2")
+#        await ctx.send(f'Снято {amount} Жрунов с счета пользователя {user.mention}!')
+#        print("Трабл строка 3")
+#    except ValueError:
+#        print("Трабл финал")
+#        await ctx.send('Недостаточно средств на счете!')
+
+#@bot.command(name='баланс')
+#async def balance(ctx, user: discord.Member):
+#    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+#    balance = bank.get_balance(user.id)
+#    await ctx.send(f'Баланс пользователя {user.mention}: {balance} Жрунов')
+
+@bot.command(name='mod_выдать')
+async def mod_give_jrun(ctx, user: discord.Member, amount: int):
+    if not has_moderator_role(ctx.author):
+        await ctx.send('У вас нет прав для использования этой команды!')
+        return
     try:
         account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
-        print("Трабл строка 1")
-        if account.balance is not None:
-            account.give_jrun(user.id, amount)
-            print("Трабл строка 2")
-            await ctx.send(f'Начислено {amount} Жрунов пользователю {user.mention}!')
-        else:
-            await ctx.send(f'Пользователь {user.mention} не имеет счета!')
+        account.give_jrun(user.id, amount)
+        await ctx.send(f'Начислено {amount} Жрунов пользователю {user.mention}!')
     except Exception as e:
         await ctx.send(f'Ошибка: {e}')
 
-@bot.command(name='положить')
-async def deposit(ctx, user: discord.Member, amount: int):
-    print("Трабл запуска")
-    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
-    print("Трабл строка 1")
-    account.deposit(amount)
-    print("Трабл строка 2")
-    await ctx.send(f'Начислено {amount} Жрунов на счет пользователя {user.mention}!')
-
-@bot.command(name='снять')
-async def withdraw(ctx, user: discord.Member, amount: int):
-    print("Трабл запуска")
-    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
-    print("Трабл строка 1")
+@bot.command(name='mod_положить')
+async def mod_deposit(ctx, user: discord.Member, amount: int):
+    if not has_moderator_role(ctx.author):
+        await ctx.send('У вас нет прав для использования этой команды!')
+        return
     try:
-        account.withdraw(amount)
-        print("Трабл строка 2")
-        await ctx.send(f'Снято {amount} Жрунов с счета пользователя {user.mention}!')
-        print("Трабл строка 3")
-    except ValueError:
-        print("Трабл финал")
-        await ctx.send('Недостаточно средств на счете!')
+        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+        account.deposit(amount)
+        await ctx.send(f'Начислено {amount} Жрунов на счет пользователя {user.mention}!')
+    except Exception as e:
+        await ctx.send(f'Ошибка: {e}')
 
-@bot.command(name='баланс')
-async def balance(ctx, user: discord.Member):
+@bot.command(name='mod_снять')
+async def mod_withdraw(ctx, user: discord.Member, amount: int):
+    if not has_moderator_role(ctx.author):
+        await ctx.send('У вас нет прав для использования этой команды!')
+        return
+    try:
+        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
+        account.withdraw(amount)
+        await ctx.send(f'Снято {amount} Жрунов с счета пользователя {user.mention}!')
+    except ValueError:
+        await ctx.send('Недостаточно средств на счете!')
+    except Exception as e:
+        await ctx.send(f'Ошибка: {e}')
+
+@bot.command(name='mod_баланс')
+async def mod_balance(ctx, user: discord.Member):
+    if not has_moderator_role(ctx.author):
+        await ctx.send('У вас нет прав для использования этой команды!')
+        return
     bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
     balance = bank.get_balance(user.id)
     await ctx.send(f'Баланс пользователя {user.mention}: {balance} Жрунов')
-#
+
+@bot.command(name='баланс')
+async def balance(ctx):
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(ctx.author.id)
+    await ctx.send(f'Ваш баланс: {balance} Жрунов')
+
+#Добавление новых команд для взаимодействия со счетом в процессе!
 
 # Токен
 bot.run("MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU")
