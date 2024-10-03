@@ -1,36 +1,38 @@
 #Чудо бот
 import discord
 import asyncio
-from discord.ext import commands
+from discord.ext import commands #только библиотека Discord.py
 import pytz
 from datetime import datetime, timedelta
-import random
+import random #рандом
 import schedule
-import json
+import json # JSON файлы (Можно использовать базы данных!)
 import time
-import datetime
-import os
+import datetime #дата тайм и тайм дельта и pytz
+import os # Владение ПК - OS
 
 # Необходимые переменные
 message_count = {}
-TOP_LIST_FILE = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/top_list.json"
+TOP_LIST_FILE = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/top_list.json" # топ лист жопок
 prefix = "!"
 random_responses=[
-    "Неактуально"
+    "Неактуально" # рандомные фразы на ошибочную команду
     ]
-# бот
+# бот INTENTS 
 bot = commands.Bot(intents=discord.Intents.all(), case_insensitive=True, command_prefix=prefix)
 
 ticket_data_file = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/tickets.json"
 rewards = {
-    100: {"Tier 4": 0.5, "Tier 5": 0.5},
+    100: {"Tier 4": 0.5, "Tier 5": 0.5}, # Лотерейка
     50: {"Tier 3": 1.0}
 }
+presence_data = {} # похождения юзеров на сервере (жруны за 7 дней)
 reaction_channel_id = 829958307002187788  # ID канала
 reaction_emoji = '👍'  # реакция, за которую начисляется жрун
 
 def reset_message_count():
     message_count.clear()
+
 
 #Классы
 class Bank:
@@ -137,6 +139,22 @@ class BankAccount:
         self.bank.increment_balance(user_id, amount)
         self.bank.save_json()
 
+class Jopnik: # Жопник, работа с файлами
+    def __init__(self, filename):
+        self.filename = filename
+        self.data = self.load_data()
+
+    def load_data(self):
+        try:
+            with open(self.filename, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {'balance': 0, 'commission': 5, 'event_active': False, 'event_start_balance': 0, 'event_end_time': None, 'top_list': []}
+
+    def save_data(self):
+        with open(self.filename, 'w') as f:
+            json.dump(self.data, f)
+
 
 # Функции
 def load_top_list():
@@ -150,7 +168,208 @@ def save_top_list(top_list):
     with open(TOP_LIST_FILE, "w") as file:
         json.dump(top_list, file)
 
-def give_jrun_for_message(user_id):
+def add_jopnik_commission(amount):
+    jopnik = Jopnik('jopnik.json')
+    jopnik.data['balance'] += amount
+    jopnik.save_data()
+
+def check_jopnik_balance(): # проверка баланса жопника
+    now = datetime.datetime.now()
+    if now.weekday() == 6 and now.hour == 23 and now.minute == 59:
+        jopnik = Jopnik('jopnik.json')
+        if jopnik.data['balance'] >= 100:
+            start_jopnik_event()
+
+def start_jopnik_event(): # запуск ивента
+    jopnik = Jopnik('jopnik.json')
+    jopnik.data['event_active'] = True
+    jopnik.save_data()
+    enable_zadobrit_command()
+    schedule.every().day.at("00:00").do(end_jopnik_event)
+
+def end_jopnik_event(): # окончание ивента
+    jopnik = Jopnik('jopnik.json')
+    if jopnik.data['balance'] < 68:
+        jopnik.data['commission'] = 2
+    calculate_rewards(jopnik.data['event_start_balance'])
+    disable_zadobrit_command()
+    jopnik.data['event_active'] = False
+    jopnik.save_data()
+
+def calculate_rewards(initial_balance): # Топ 5 за ивент
+    jopnik = Jopnik('jopnik.json')
+    top_list = jopnik.data['top_list']
+    rewards = []
+    for i, user in enumerate(top_list[:5]):
+        reward = int(initial_balance * (0.25 - i * 0.05))
+        rewards.append((user, reward))
+    save_rewards(rewards)
+
+def save_rewards(rewards): # save наград
+    with open('rewards.json', 'w') as f:
+        json.dump(rewards, f)
+
+def enable_zadobrit_command(): # функция для !задобрить
+    @bot.command(name='задобрить')
+    async def zadobrit(ctx):
+        jopnik = Jopnik('jopnik.json')
+        if ctx.author.id in zadobrit_cooldown:
+            await ctx.send("Вы уже использовали команду '!задобрить' в этом часе.")
+            return
+        bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+        balance = bank.get_balance(ctx.author.id)
+        if balance < 3:
+            await ctx.send("У вас не хватает жрунов для использования команды '!задобрить'.")
+            return
+        bank.decrement_balance(ctx.author.id, 3)
+        reward = random.randint(0, 5)
+        bank.increment_balance(ctx.author.id, reward)
+        jopnik.data['top_list'].append(ctx.author.id)
+        jopnik.save_data()
+
+def disable_zadobrit_command(): # Для особо активных отключение команды !задобрить
+    @bot.command(name='задобрить')
+    async def zadobrit(ctx):
+        await ctx.send("Команда '!задобрить' неактивна.")
+
+def load_zadobrit_top():
+    jopnik = Jopnik('jopnik.json')
+    return jopnik.data['top_list']
+
+def save_zadobrit_top(top_list): # топ Задобрителей
+    jopnik = Jopnik('jopnik.json')
+    jopnik.data['top_list'] = top_list
+
+def get_commission(): #коммисия жопника
+    commission = random.randint(1, 10)
+    return commission
+
+def check_requirements(user, role): # Магаз жопника
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(user.id)
+    top_list = load_top_list()
+    user_info = next((x for x in top_list if x['никнейм'] == user.name), None)
+    if user_info is None:
+        return False
+    if role == 'Продвинутый':
+        if balance < 30 + get_commission() or user_info['жопки'] < 5:
+            return False
+    elif role == 'Опытный':
+        if balance < 70 + get_commission() or user_info['жопки'] < 10:
+            return False
+    return True
+
+def check_roles(): # проверка на наличие жопок
+    top_list = load_top_list()
+    for user in bot.get_all_members():
+        user_info = next((x for x in top_list if x['никнейм'] == user.name), None)
+        if user_info is not None:
+            if 'Продвинутый' in [role.name for role in user.roles] and user_info['жопки'] < 5:
+                role = discord.utils.get(user.guild.roles, name='Продвинутый')
+                user.remove_roles(role)
+            elif 'Опытный' in [role.name for role in user.roles] and user_info['жопки'] < 10:
+                role = discord.utils.get(user.guild.roles, name='Опытный')
+                user.remove_roles(role)
+
+schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00
+
+def set_first_jrun_date(user): # дата получения первого жруна
+    try:
+        with open('first_jrun_date.json', 'r+') as f:
+            first_jrun_dates = json.load(f)
+    except FileNotFoundError:
+        with open('first_jrun_date.json', 'w') as f:
+            json.dump({}, f)
+        first_jrun_dates = {}
+    now = datetime.datetime.now(datetime.timezone.utc)
+    first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
+    with open('first_jrun_date.json', 'w') as f:
+        json.dump(first_jrun_dates, f)
+
+def give_jrun_for_all_members():
+    for member in bot.get_all_members():
+        if "Опытный" in [role.name for role in member.roles]:
+            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
+            account.give_jrun(member.id, 4)
+        elif "Продвинутый" in [role.name for role in member.roles]:
+            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
+            account.give_jrun(member.id, 2)
+
+def remove_roles_if_needed(user_id, new_asses_count): # удаление ролей при понижении жопок
+    user = bot.get_user(user_id)
+    if user:
+        if new_asses_count < 30:
+            role = discord.utils.get(user.guild.roles, name='Продвинутый')
+            if role in user.roles:
+                user.remove_roles(role)
+        if new_asses_count < 70:
+            role = discord.utils.get(user.guild.roles, name='Опытный')
+            if role in user.roles:
+                user.remove_roles(role)
+
+def minus_asses(user_number, amount): # Понижение кол-ва жопок
+    top_list = load_top_list()
+    if user_number < 1 or user_number > len(top_list):
+        return
+    new_asses_count = top_list[user_number - 1]['жопки'] - amount
+    remove_roles_if_needed(top_list[user_number - 1]['id'], new_asses_count)
+    top_list[user_number - 1]['жопки'] = new_asses_count
+    save_top_list(top_list)
+
+def reset_balance_on_leave(user): # Очищение баланса при лива с сервера
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    bank.set_balance(user.id, 0)
+    try:
+        with open('first_jrun_date.json', 'r+') as f:
+            first_jrun_dates = json.load(f)
+        first_jrun_dates.pop(str(user.id), None)
+        with open('first_jrun_date.json', 'w') as f:
+            json.dump(first_jrun_dates, f)
+    except FileNotFoundError:
+        pass
+
+@bot.event
+async def on_member_remove(member):
+    user_id = member.id
+    try:
+        with open('presence_data.json', 'r+') as f:
+            presence_data = json.load(f)
+    except FileNotFoundError:
+        with open('presence_data.json', 'w') as f:
+            json.dump({}, f)
+        presence_data = {}
+    user_data = presence_data.get(str(user_id), {'join_date': None})
+    now = datetime.datetime.now(datetime.timezone.utc)
+    presence_data[str(user_id)] = {'join_date': None}
+    with open('presence_data.json', 'w') as f:
+        json.dump(presence_data, f)
+
+def give_jrun_for_presence(user):
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(user.id)
+    if balance > 0:
+        try:
+            with open('first_jrun_date.json', 'r+') as f:
+                first_jrun_dates = json.load(f)
+        except FileNotFoundError:
+            with open('first_jrun_date.json', 'w') as f:
+                json.dump({}, f)
+            first_jrun_dates = {}
+        first_jrun_date = first_jrun_dates.get(str(user.id), None)
+        if first_jrun_date:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            first_jrun_date_obj = datetime.datetime.strptime(first_jrun_date, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+            days_since_first_jrun = (now - first_jrun_date_obj).days
+            if days_since_first_jrun >= 7:
+                print("{user.id} получил еженедельные жруны!")
+                bank.increment_balance(user.id, 2)
+                if "Огонь" in [role.name for role in user.roles]:
+                    bank.increment_balance(user.id, 2)
+                first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
+                with open('first_jrun_date.json', 'w') as f:
+                    json.dump(first_jrun_dates, f)
+
+def give_jrun_for_message(user_id): # Получение жруна за ежедневное сообщение
     if user_id not in message_count:
         message_count[user_id] = 0
     message_count[user_id] += 1
@@ -212,7 +431,7 @@ def can_receive_reward(user_id):
     current_time = time.time()
     return current_time - last_reward_time >= 86400  # 86400 секунд = 24 часа
 
-def give_jrun_for_reaction(reaction, user):
+def give_jrun_for_reaction(reaction, user): # Жрун за реакцию в канале 1 раз в день
     if reaction.message.channel.id == reaction_channel_id:
         now = datetime.datetime.now(datetime.timezone.utc)
         user_id = user.id
@@ -263,8 +482,6 @@ def update_last_message_time(user_id):
 def reset_last_message_time():
     with open('last_messages.json', 'w') as f:
         json.dump({}, f)
-
-schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по времени Сахалину
 
 def get_today():
     return datetime.now().strftime('%Y-%m-%d')
@@ -335,16 +552,31 @@ def draw_lottery(user_id):
 
     return "К сожалению, вы ничего не выиграли."
 
-def has_moderator_role(user):
+def has_moderator_role(user): # роли модеров
     moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
     for role in user.roles:
         if role.name in moderator_roles:
             return True
 
+schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по времени Сахалину
+schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)  # вызывать функцию каждый день в 00:00 получение жрунов
+schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00 чек на жопки
+schedule.every().day.at("23:59").do(check_jopnik_balance)
+
+
 #запуск Бота
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} успешно запущен")
+
+
+@bot.event #пришел юзер
+async def on_member_join(member):
+    give_jrun_for_presence(member)
+@bot.event #ушел юзер
+async def on_member_remove(member):
+    reset_balance_on_leave(member)
+
 
 #Евриван Сообщение
 @bot.event
@@ -392,6 +624,65 @@ async def on_reaction_add(reaction, user):
     if user == bot.user:
         return
     give_jrun_for_reaction(reaction, user)
+
+@bot.event # обработчик кнопок !для магазина и !для Жопника
+async def on_interaction(interaction):
+    if interaction.type == discord.InteractionType.component:
+        await handle_component_interaction(interaction)
+
+async def handle_component_interaction(interaction):
+    if interaction.data.get('custom_id') == 'zadobrit':
+        await handle_zadobrit_interaction(interaction)
+    elif interaction.data.get('custom_id') == 'shop':
+        await handle_shop_interaction(interaction)
+    elif interaction.data.get('custom_id') == 'buy_advanced':
+        await handle_buy_advanced_interaction(interaction)
+    elif interaction.data.get('custom_id') == 'buy_experienced':
+        await handle_buy_experienced_interaction(interaction)
+
+async def zadobrit(interaction):
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(interaction.user.id)
+    if balance < 3:
+        await interaction.response.send_message('У вас не хватает жрунов для задобрения жопника!')
+        return
+    bank.decrement_balance(interaction.user.id, 3)
+    reward = random.randint(0, 5)
+    bank.increment_balance(interaction.user.id, reward)
+    await interaction.response.send_message(f'Вы задобрили жопника и получили {reward} жрунов!')
+
+async def handle_shop_interaction(interaction):
+    embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
+    embed.add_field(name='Продвинутый', value='30 жрунов + комиссия "Жопника"', inline=False)
+    embed.add_field(name='Опытный', value='70 жрунов + комиссия "Жопника"', inline=False)
+
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
+    view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
+
+    await interaction.response.edit_message(embed=embed, view=view)
+
+async def handle_buy_advanced_interaction(interaction):
+    if not check_requirements(interaction.user, 'Продвинутый'):
+        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
+        return
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(interaction.user.id)
+    bank.decrement_balance(interaction.user.id, 30 + get_commission())
+    role = discord.utils.get(interaction.guild.roles, name='Продвинутый')
+    await interaction.user.add_roles(role)
+    await interaction.response.send_message('Вы успешно купили роль Продвинутый!')
+
+async def handle_buy_experienced_interaction(interaction):
+    if not check_requirements(interaction.user, 'Опытный'):
+        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
+        return
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(interaction.user.id)
+    bank.decrement_balance(interaction.user.id, 70 + get_commission())
+    role = discord.utils.get(interaction.guild.roles, name='Опытный')
+    await interaction.user.add_roles(role)
+    await interaction.response.send_message('Вы успешно купили роль Опытный!')
 
 # Команда - Время
 @bot.command(name='Время')
@@ -582,10 +873,70 @@ async def lottery_command(ctx):
     await ctx.send(result)
 
 # HELP команды жрунов
-@bot.command()
+# HELP команды жрунов
+@bot.command(name='помощь')
 async def help_jrun(ctx):
     guide = """
-**Команды для работы с Жрунами**
+**Команды бота**
+
+**Базовые команды**
+`!Время` - Команда времени у Чудачки
+`!Вкплей` - ссылка на площадку Vk Play Live Чудачки
+`!Твич` - ссылка на площадку Twitch
+`!Дискорд` - ссылка на данный Discord сервер (Сервер Чудачки)
+`!ПК` - конфигурация ПК Чудачки
+`!Мемы` - ссылка на Мем Алертс Чудачки
+`!Бусти` - ссылка на Бусти Чудачки
+`!Гдестрим` - это вопрос? Бот ответит когда будет следующий стрим.
+`!Дота` - стоимость за которую Чудо поиграет в доту
+`!Танки` - стоимость игры в танки
+
+*Жопки**
+`!Жопка` - Топ владельцев жопок
+
+**Пнуть пользователя**
+`!пнуть <@user>` - пинает пользователя в ЛС
+
+
+
+**Жопник**
+`!Жопник` - открывает функционал Жопника
+
+**Магазин**
+`!магаз` - открыть магазин для покупки ролей и других товаров
+
+**Помощь по Жопнику**
+`!help_jopnik` - получить информацию о Жопнике и его командах
+
+"""
+    await ctx.send(guide)
+
+# HELP команды Жопника
+@bot.command()
+async def help_jopnik(ctx):
+    guide = """
+**Команды для работы с Жопником**
+
+**Открыть меню Жопника**
+`!жопник` - открыть меню Жопника и задобрить его во время ивента
+
+**Задобрить Жопника**
+`!задобрить` - задобрить Жопника во время ивента
+
+**Получить информацию о Жопнике**
+`!help_jopnik` - получить информацию о Жопнике и его командах
+
+"""
+    await ctx.send(guide)
+
+@bot.command(name='mod_help')
+async def help_mod(ctx):
+    moderator_roles = ["Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк"]
+    if not any(role.name in moderator_roles for role in ctx.author.roles):
+        await ctx.send("Ошибка: У вас нет прав для использования этой команды.")
+        return
+    guide = """
+**Команды для модераторов**
 
 **Выдать Жруны**
 `!mod_выдать <пользователь> <количество>` - начислить Жруны пользователю
@@ -599,9 +950,16 @@ async def help_jrun(ctx):
 **Снять Жруны**
 `!mod_снять <пользователь> <количество>` - снять Жруны с счета пользователя
 
+**Манипуляция жопок**
+`!НоваяЖопка <@user>`- создание новой жопки у юзера. Базовое значение 2.
+`!НомераЖопок`- список всех жопок, для удобности перевода.
+`!ПеревестиЖопки <@user минус> <@user плюс>`- перевод жопок от одного пользователя к другому.
+`!минус <@user>`- вычесть у <@user> кол-во жопок
+`!плюс <@user>`- добавить <@user> жопки
 
 """
     await ctx.send(guide)
+
 
 #Bank Sistem Жруны!
 
@@ -693,14 +1051,44 @@ async def balance(ctx):
     balance = bank.get_balance(ctx.author.id)
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
+@bot.command(name='магаз')
+async def shop(ctx):
+    commission = get_commission()
+    embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
+    embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
+    embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
+
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
+    view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
+
+    await ctx.send(embed=embed, view=view)
+
+@bot.command(name='жопник')
+async def jopnik(ctx):
+    jopnik = Jopnik('jopnik.json')
+    embed = discord.Embed(title='Магнат Комиссионович Жопник, приветствует тебя!')
+    embed.add_field(name='Баланс Жопника', value=f'{jopnik.data["balance"]} жрунов', inline=False)
+    embed.add_field(name='Дневная комиссия', value=f'{jopnik.data["commission"]} жрунов', inline=False)
+    embed.add_field(name='Активность ивента', value='Да' if jopnik.data['event_active'] else 'Нет', inline=False)
+
+    view = discord.ui.View()
+    if jopnik.data['event_active']:
+        view.add_item(discord.ui.Button(label='Задобрить', custom_id='zadobrit'))
+    view.add_item(discord.ui.Button(label='Магазин', custom_id='shop'))
+
+    await ctx.send(embed=embed, view=view)
+
+
 #Добавление новых команд для взаимодействия со счетом в процессе!
 exit_while = 0
 while exit_while == 0:
     schedule.run_pending()
+    check_jopnik_balance()
     time.sleep(1)
     exit_while+=1
 
 # Токен
-bot.run("MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU")
+bot.run("MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw")
 #Лото MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU
 #Чудо MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw
