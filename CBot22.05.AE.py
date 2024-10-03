@@ -138,8 +138,6 @@ class BankAccount:
         self.bank.save_json()
 
 
-
-
 # Функции
 def load_top_list():
     try:
@@ -158,6 +156,8 @@ def give_jrun_for_message(user_id):
     message_count[user_id] += 1
     account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
     account.give_jrun(user_id, 1)
+    if "Огонь" in [role.name for role in user.roles]:
+        account.give_jrun(user_id, 1) 
     return True
 
 def get_current_date():
@@ -231,6 +231,8 @@ def give_jrun_for_reaction(reaction, user):
                 json.dump(reaction_data, f)
             account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
             account.give_jrun(user_id, 1)
+            if "Огонь" in [role.name for role in user.roles]:
+                account.give_jrun(user_id, 1)
             return True
     return False
 
