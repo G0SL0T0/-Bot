@@ -5,6 +5,7 @@ from discord.ext import commands
 import pytz
 from datetime import datetime, timedelta
 import random
+import schedule
 import json
 import time
 import datetime
@@ -25,7 +26,11 @@ rewards = {
     100: {"Tier 4": 0.5, "Tier 5": 0.5},
     50: {"Tier 3": 1.0}
 }
+reaction_channel_id = 951816149291659274  # ID канала
+reaction_emoji = '👍'  # реакция, за которую начисляется жрун
 
+def reset_message_count():
+    message_count.clear()
 
 #Классы
 class Bank:
@@ -147,6 +152,14 @@ def save_top_list(top_list):
     with open(TOP_LIST_FILE, "w") as file:
         json.dump(top_list, file)
 
+def give_jrun_for_message(user_id):
+    if user_id not in message_count:
+        message_count[user_id] = 0
+    message_count[user_id] += 1
+    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
+    account.give_jrun(user_id, 1)
+    return True
+
 def get_current_date():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -199,23 +212,57 @@ def can_receive_reward(user_id):
     current_time = time.time()
     return current_time - last_reward_time >= 86400  # 86400 секунд = 24 часа
 
-def update_last_message_time(user_id):
-    with open('last_messages.json', 'r+') as f:
+def give_jrun_for_reaction(reaction, user):
+    if reaction.message.channel.id == reaction_channel_id and reaction.emoji == reaction_emoji:
+        now = datetime.datetime.utcnow()
+        user_id = user.id
         try:
-            last_messages = json.load(f)
-        except json.JSONDecodeError:
-            last_messages = {}
-        user_id_str = str(user_id)
-        now = datetime.utcnow()
-        last_message_time = last_messages.get(user_id_str, {'last_message': None})['last_message']
-        last_message_date = datetime.strptime(last_message_time, '%Y-%m-%d %H:%M:%S') if last_message_time else None
-        if not last_message_date or now - last_message_date > timedelta(days=1):
-            last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S')}
-            f.seek(0)
-            json.dump(last_messages, f, indent=4)
-            f.truncate()
+            with open('reaction_data.json', 'r+') as f:
+                reaction_data = json.load(f)
+        except FileNotFoundError:
+            with open('reaction_data.json', 'w') as f:
+                json.dump({}, f)
+            reaction_data = {}
+        user_data = reaction_data.get(str(user_id), {'last_reaction': None})
+        last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f') if user_data['last_reaction'] else None
+        if not last_reaction_date or now - last_reaction_date > datetime.timedelta(days=1):
+            reaction_data[str(user_id)] = {'last_reaction': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
+            with open('reaction_data.json', 'w') as f:
+                json.dump(reaction_data, f)
+            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
+            account.give_jrun(user_id, 1)
             return True
-        return False
+    return False
+
+def update_last_message_time(user_id):
+    try:
+        with open('last_messages.json', 'r+') as f:
+            last_messages = json.load(f)
+    except FileNotFoundError:
+        with open('last_messages.json', 'w') as f:
+            json.dump({}, f)
+        last_messages = {}
+    except json.JSONDecodeError:
+        last_messages = {}
+    user_id_str = str(user_id)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    last_message_time = last_messages.get(user_id_str, {'last_message': None})['last_message']
+    if last_message_time is not None:
+        last_message_date = datetime.datetime.strptime(last_message_time, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+    else:
+        last_message_date = None
+    if not last_message_date or now - last_message_date > datetime.timedelta(days=1):
+        last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
+        with open('last_messages.json', 'w') as f:
+            json.dump(last_messages, f)
+        return True
+    return False
+
+def reset_last_message_time():
+    with open('last_messages.json', 'w') as f:
+        json.dump({}, f)
+
+schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по времени Сахалину
 
 def get_today():
     return datetime.now().strftime('%Y-%m-%d')
@@ -332,8 +379,17 @@ async def on_command_error(ctx, error):
 async def on_message(message):
     if message.author == bot.user:
         return
-
+    if update_last_message_time(message.author.id):
+        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', message.author.id)
+        account.give_jrun(message.author.id, 1)
+        await message.add_reaction('🔥')
     await bot.process_commands(message)
+    
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user == bot.user:
+        return
+    give_jrun_for_reaction(reaction, user)
 
 # Команда - Время
 @bot.command(name='Время')
@@ -636,6 +692,11 @@ async def balance(ctx):
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
 #Добавление новых команд для взаимодействия со счетом в процессе!
+exit_while = 0
+while exit_while == 0:
+    schedule.run_pending()
+    time.sleep(1)
+    exit_while+=1
 
 # Токен
 bot.run("MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU")
