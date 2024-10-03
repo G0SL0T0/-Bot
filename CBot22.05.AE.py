@@ -26,7 +26,7 @@ rewards = {
     100: {"Tier 4": 0.5, "Tier 5": 0.5},
     50: {"Tier 3": 1.0}
 }
-reaction_channel_id = 951816149291659274  # ID канала
+reaction_channel_id = 829958307002187788  # ID канала
 reaction_emoji = '👍'  # реакция, за которую начисляется жрун
 
 def reset_message_count():
@@ -213,8 +213,8 @@ def can_receive_reward(user_id):
     return current_time - last_reward_time >= 86400  # 86400 секунд = 24 часа
 
 def give_jrun_for_reaction(reaction, user):
-    if reaction.message.channel.id == reaction_channel_id and reaction.emoji == reaction_emoji:
-        now = datetime.datetime.utcnow()
+    if reaction.message.channel.id == reaction_channel_id:
+        now = datetime.datetime.now(datetime.timezone.utc)
         user_id = user.id
         try:
             with open('reaction_data.json', 'r+') as f:
@@ -224,7 +224,7 @@ def give_jrun_for_reaction(reaction, user):
                 json.dump({}, f)
             reaction_data = {}
         user_data = reaction_data.get(str(user_id), {'last_reaction': None})
-        last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f') if user_data['last_reaction'] else None
+        last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc) if user_data['last_reaction'] else None
         if not last_reaction_date or now - last_reaction_date > datetime.timedelta(days=1):
             reaction_data[str(user_id)] = {'last_reaction': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
             with open('reaction_data.json', 'w') as f:
@@ -384,7 +384,7 @@ async def on_message(message):
         account.give_jrun(message.author.id, 1)
         await message.add_reaction('🔥')
     await bot.process_commands(message)
-    
+
 @bot.event
 async def on_reaction_add(reaction, user):
     if user == bot.user:
