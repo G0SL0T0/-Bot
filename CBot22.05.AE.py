@@ -155,6 +155,43 @@ class Jopnik: # Жопник, работа с файлами
         with open(self.filename, 'w') as f:
             json.dump(self.data, f)
 
+class MainMenu(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label='Время', description='Узнать время у Чудачки', emoji='🕰️'),
+            discord.SelectOption(label='Vk Play', description='Ссылка на площадку Vk Play Live Чудачки', emoji='📺'),
+            discord.SelectOption(label='Twitch', description='Ссылка на площадку Twitch', emoji='📺'),
+            discord.SelectOption(label='Дискорд', description='Ссылка на данный Discord сервер', emoji='👥'),
+            discord.SelectOption(label='ПК', description='Конфигурация ПК Чудачки', emoji='🖥️'),
+            discord.SelectOption(label='Мемы', description='Ссылка на Мем Алертс Чудачки', emoji='😂'),
+            discord.SelectOption(label='Бусти', description='Ссылка на Бусти Чудачки', emoji='💸'),
+            discord.SelectOption(label='Гдестрим', description='Узнать когда будет следующий стрим', emoji='📺'),
+            discord.SelectOption(label='Дота', description='Стоимость за которую Чудо поиграет в доту', emoji='🎮'),
+            discord.SelectOption(label='Танки', description='Стоимость игры в танки', emoji='🎮'),
+        ]
+        super().__init__(placeholder='Выберите команду', min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == 'Время':
+            await get_time(interaction)
+        elif self.values[0] == 'Vk Play':
+            await vk_play(interaction)
+        elif self.values[0] == 'Twitch':
+            await Twitch(interaction)
+        elif self.values[0] == 'Дискорд':
+            await discord_info(interaction)
+        elif self.values[0] == 'ПК':
+            await pc_info(interaction)
+        elif self.values[0] == 'Мемы':
+            await memes(interaction)
+        elif self.values[0] == 'Бусти':
+            await bysti(interaction)
+        elif self.values[0] == 'Гдестрим':
+            await stream_info(interaction)
+        elif self.values[0] == 'Дота':
+            await play_dota(interaction)
+        elif self.values[0] == 'Танки':
+            await play_tanki(interaction)
 
 # Функции
 def load_top_list():
@@ -327,6 +364,18 @@ def reset_balance_on_leave(user): # Очищение баланса при ли�
             json.dump(first_jrun_dates, f)
     except FileNotFoundError:
         pass
+
+def reset_message_count():
+    global message_count
+    message_count = {}
+
+def reset_last_message_time():
+    with open('last_messages.json', 'w') as f:
+        json.dump({}, f)
+
+def reset_reaction_count():
+    with open('reaction_data.json', 'w') as f:
+        json.dump({}, f)
 
 @bot.event
 async def on_member_remove(member):
@@ -552,6 +601,76 @@ def draw_lottery(user_id):
 
     return "К сожалению, вы ничего не выиграли."
 
+# Команда - Время
+async def get_time(interaction):
+    time1 = pytz.timezone('Asia/Sakhalin')
+    time2 = datetime.datetime.now(time1)
+    time3 = time2 + datetime.timedelta(hours=0)
+    formatted_time = time3.strftime("%H:%M:%S")
+    await interaction.response.send_message(f"Сейчас у Чудачки: {formatted_time}")
+    print('Команда Время')
+
+# Команда - Vk Play
+async def vk_play(interaction):
+    await interaction.response.send_message("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
+
+# Команда - Twitch
+async def Twitch(interaction):
+    await interaction.response.send_message("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
+
+# Команда - Дискорд
+async def discord_info(interaction):
+    await interaction.response.send_message("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
+# Команда - ПК
+async def pc_info(ctx=None, interaction=None):
+    if interaction:
+        await interaction.response.send_message("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
+    else:
+        await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
+
+# Команда - Мемы
+async def memes(ctx=None, interaction=None):
+    if interaction:
+        await interaction.response.send_message("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
+    else:
+        await ctx.send("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
+
+# Команда - Бусти
+async def bysti(ctx=None, interaction=None):
+    if interaction:
+        await interaction.response.send_message("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
+    else:
+        await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
+
+# Команда - Где стриим
+async def stream_info(ctx=None, interaction=None):
+    excuses = [
+        "Сегодня уже не успеем, ждем завтра.",
+        "Стрим будет в следующий раз, ожидайте!",
+        "Планируем стрим на ближайшее время, следите за обновлениями."
+    ]
+    excuse = random.choice(excuses)
+    if interaction:
+        await interaction.response.send_message(f"{excuse}")
+    else:
+        await ctx.send(f"{excuse}")
+
+# Команда - Дота
+async def play_dota(ctx=None, interaction=None):
+    if interaction:
+        await interaction.response.send_message(f"Чудачка поиграет в доту за много-много рублей.")
+    else:
+        await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
+
+# Команда - Танки
+async def play_tanki(ctx=None, interaction=None):
+    message = "```Чудо не поиграет в Танки 🤡```"
+    if interaction:
+        await interaction.response.send_message(message)
+    else:
+       await ctx.send(f"```Чудо не поиграет в Танки 🤡```")
+
+
 def has_moderator_role(user): # роли модеров
     moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
     for role in user.roles:
@@ -562,6 +681,9 @@ schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по вре
 schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)  # вызывать функцию каждый день в 00:00 получение жрунов
 schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00 чек на жопки
 schedule.every().day.at("23:59").do(check_jopnik_balance)
+schedule.every().day.at("00:00").do(reset_message_count)
+schedule.every().day.at("00:00").do(reset_last_message_time)
+schedule.every().day.at("00:00").do(reset_reaction_count)
 
 
 #запуск Бота
@@ -684,58 +806,122 @@ async def handle_buy_experienced_interaction(interaction):
     await interaction.user.add_roles(role)
     await interaction.response.send_message('Вы успешно купили роль Опытный!')
 
+async def on_interaction(interaction):
+    if interaction.type == discord.InteractionType.component:
+        if interaction.data.get('custom_id') == 'shop':
+            await handle_shop_interaction(interaction)
+
+@bot.command(name='меню')
+async def menu(ctx):
+    embed = discord.Embed(title='Меню', description='Здесь вы можете найти ссылки и команды')
+    embed.add_field(name='Время', value='!Время', inline=False)
+    embed.add_field(name='Vk Play', value='!Вкплей', inline=False)
+    embed.add_field(name='Twitch', value='!Твич', inline=False)
+    embed.add_field(name='Дискорд', value='!Дискорд', inline=False)
+    embed.add_field(name='ПК', value='!ПК', inline=False)
+    embed.add_field(name='Мемы', value='!Мемы', inline=False)
+    embed.add_field(name='Бусти', value='!Бусти', inline=False)
+    embed.add_field(name='Гдестрим', value='!Гдестрим', inline=False)
+    embed.add_field(name='Дота', value='!Дота', inline=False)
+    embed.add_field(name='Танки', value='!Танки', inline=False)
+
+    view = discord.ui.View()
+    view.add_item(MainMenu())
+    view.add_item(discord.ui.Button(label='Магазин', custom_id='shop'))
+
+    await ctx.send(embed=embed, view=view)
+
 # Команда - Время
 @bot.command(name='Время')
-async def get_time(ctx):
+async def get_time(ctx, **kwargs):
     time1 = pytz.timezone('Asia/Sakhalin')
     time2 = datetime.datetime.now(time1)
     time3 = time2 + datetime.timedelta(hours=0)
     formatted_time = time3.strftime("%H:%M:%S")
-    await ctx.send(f"Сейчас у Чудачки: {formatted_time}")
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message(f"Сейчас у Чудачки: {formatted_time}")
+    else:
+        await ctx.send(f"Сейчас у Чудачки: {formatted_time}")
     print('Команда Время')
+
 # Команда - Vk Play
 @bot.command(name='Вкплей')
-async def vk_play(ctx):
-    await ctx.send("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
+async def vk_play(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
+    else:
+        await ctx.send("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
+
 # Команда - Twitch
 @bot.command(name='Твич')
-async def Twitch(ctx):
-    await ctx.send("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
+async def Twitch(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
+    else:
+        await ctx.send("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
+
 # Команда - Дискорд
 @bot.command(name='Дискорд')
-async def discord_info(ctx):
-    await ctx.send("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
+async def discord_info(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
+    else:
+        await ctx.send("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
+
 # Команда - ПК
 @bot.command(name='ПК')
-async def pc_info(ctx):
-    await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
+async def pc_info(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
+    else:
+        await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
+
 # Команда - Мемы
 @bot.command(name='мем')
-async def memes(ctx):
-    await ctx.send("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
+async def memes(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
+    else:
+        await ctx.send("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
+
 # Команда - Бусти
 @bot.command(name='бусти')
-async def bysti(ctx):
-    await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
+async def bysti(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
+    else:
+        await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
+
 # Команда - Где стриим
 @bot.command(name='Гдестрим')
-async def stream_info(ctx):
+async def stream_info(ctx, **kwargs):
     excuses = [
         "Сегодня уже не успеем, ждем завтра.",
         "Стрим будет в следующий раз, ожидайте!",
         "Планируем стрим на ближайшее время, следите за обновлениями."
     ]
     excuse = random.choice(excuses)
-    await ctx.send(f"{excuse}")
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message(f"{excuse}")
+    else:
+        await ctx.send(f"{excuse}")
+
 # Команда - Дота
 @bot.command(name='дота')
-async def play_dota(ctx):
-    await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
+async def play_dota(ctx, **kwargs):
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message(f"Чудачка поиграет в доту за много-много рублей.")
+    else:
+        await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
+
 # Команда - Танки
 @bot.command(name='танки')
-async def play_tanki(ctx):
+async def play_tanki(ctx, **kwargs):
     message = "```Чудо не поиграет в Танки 🤡```"
-    await ctx.send(message)
+    if 'interaction' in kwargs:
+        await kwargs['interaction'].response.send_message(message)
+    else:
+        await ctx.send(message)
 
 
 # !стрим
@@ -872,7 +1058,6 @@ async def lottery_command(ctx):
     result = draw_lottery(ctx.author.id)
     await ctx.send(result)
 
-# HELP команды жрунов
 # HELP команды жрунов
 @bot.command(name='помощь')
 async def help_jrun(ctx):
@@ -1089,6 +1274,6 @@ while exit_while == 0:
     exit_while+=1
 
 # Токен
-bot.run("MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw")
+bot.run("MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU")
 #Лото MTE2NjYzODE2NTY1ODk3NjI3Nw.Gi1Xt0.0xhlWdERtyKuWQSupLmmN_hJ8FPdFXK9RKdvjU
 #Чудо MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw
