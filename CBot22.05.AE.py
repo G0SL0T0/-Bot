@@ -5,6 +5,7 @@ from discord.ext import commands #только библиотека Discord.py
 import pytz
 from datetime import datetime, timedelta
 import random #рандом
+import shutil
 import schedule
 import json # JSON файлы (Можно использовать базы данных!)
 import time
@@ -155,43 +156,6 @@ class Jopnik: # Жопник, работа с файлами
         with open(self.filename, 'w') as f:
             json.dump(self.data, f)
 
-class MainMenu(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label='Время', description='Узнать время у Чудачки', emoji='🕰️'),
-            discord.SelectOption(label='Vk Play', description='Ссылка на площадку Vk Play Live Чудачки', emoji='📺'),
-            discord.SelectOption(label='Twitch', description='Ссылка на площадку Twitch', emoji='📺'),
-            discord.SelectOption(label='Дискорд', description='Ссылка на данный Discord сервер', emoji='👥'),
-            discord.SelectOption(label='ПК', description='Конфигурация ПК Чудачки', emoji='🖥️'),
-            discord.SelectOption(label='Мемы', description='Ссылка на Мем Алертс Чудачки', emoji='😂'),
-            discord.SelectOption(label='Бусти', description='Ссылка на Бусти Чудачки', emoji='💸'),
-            discord.SelectOption(label='Гдестрим', description='Узнать когда будет следующий стрим', emoji='📺'),
-            discord.SelectOption(label='Дота', description='Стоимость за которую Чудо поиграет в доту', emoji='🎮'),
-            discord.SelectOption(label='Танки', description='Стоимость игры в танки', emoji='🎮'),
-        ]
-        super().__init__(placeholder='Выберите команду', min_values=1, max_values=1, options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        if self.values[0] == 'Время':
-            await get_time(interaction)
-        elif self.values[0] == 'Vk Play':
-            await vk_play(interaction)
-        elif self.values[0] == 'Twitch':
-            await Twitch(interaction)
-        elif self.values[0] == 'Дискорд':
-            await discord_info(interaction)
-        elif self.values[0] == 'ПК':
-            await pc_info(interaction)
-        elif self.values[0] == 'Мемы':
-            await memes(interaction)
-        elif self.values[0] == 'Бусти':
-            await bysti(interaction)
-        elif self.values[0] == 'Гдестрим':
-            await stream_info(interaction)
-        elif self.values[0] == 'Дота':
-            await play_dota(interaction)
-        elif self.values[0] == 'Танки':
-            await play_tanki(interaction)
 
 # Функции
 def load_top_list():
@@ -206,26 +170,26 @@ def save_top_list(top_list):
         json.dump(top_list, file)
 
 def add_jopnik_commission(amount):
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['balance'] += amount
     jopnik.save_data()
 
 def check_jopnik_balance(): # проверка баланса жопника
     now = datetime.datetime.now()
     if now.weekday() == 6 and now.hour == 23 and now.minute == 59:
-        jopnik = Jopnik('jopnik.json')
+        jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
         if jopnik.data['balance'] >= 100:
             start_jopnik_event()
 
 def start_jopnik_event(): # запуск ивента
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['event_active'] = True
     jopnik.save_data()
     enable_zadobrit_command()
     schedule.every().day.at("00:00").do(end_jopnik_event)
 
 def end_jopnik_event(): # окончание ивента
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     if jopnik.data['balance'] < 68:
         jopnik.data['commission'] = 2
     calculate_rewards(jopnik.data['event_start_balance'])
@@ -234,7 +198,7 @@ def end_jopnik_event(): # окончание ивента
     jopnik.save_data()
 
 def calculate_rewards(initial_balance): # Топ 5 за ивент
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     top_list = jopnik.data['top_list']
     rewards = []
     for i, user in enumerate(top_list[:5]):
@@ -243,13 +207,13 @@ def calculate_rewards(initial_balance): # Топ 5 за ивент
     save_rewards(rewards)
 
 def save_rewards(rewards): # save наград
-    with open('rewards.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
         json.dump(rewards, f)
 
 def enable_zadobrit_command(): # функция для !задобрить
     @bot.command(name='задобрить')
     async def zadobrit(ctx):
-        jopnik = Jopnik('jopnik.json')
+        jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
         if ctx.author.id in zadobrit_cooldown:
             await ctx.send("Вы уже использовали команду '!задобрить' в этом часе.")
             return
@@ -270,11 +234,11 @@ def disable_zadobrit_command(): # Для особо активных отклю�
         await ctx.send("Команда '!задобрить' неактивна.")
 
 def load_zadobrit_top():
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     return jopnik.data['top_list']
 
 def save_zadobrit_top(top_list): # топ Задобрителей
-    jopnik = Jopnik('jopnik.json')
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['top_list'] = top_list
 
 def get_commission(): #коммисия жопника
@@ -308,19 +272,17 @@ def check_roles(): # проверка на наличие жопок
                 role = discord.utils.get(user.guild.roles, name='Опытный')
                 user.remove_roles(role)
 
-schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00
-
 def set_first_jrun_date(user): # дата получения первого жруна
     try:
-        with open('first_jrun_date.json', 'r+') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
             first_jrun_dates = json.load(f)
     except FileNotFoundError:
-        with open('first_jrun_date.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
             json.dump({}, f)
         first_jrun_dates = {}
     now = datetime.datetime.now(datetime.timezone.utc)
     first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-    with open('first_jrun_date.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
         json.dump(first_jrun_dates, f)
 
 def give_jrun_for_all_members():
@@ -357,10 +319,10 @@ def reset_balance_on_leave(user): # Очищение баланса при ли�
     bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
     bank.set_balance(user.id, 0)
     try:
-        with open('first_jrun_date.json', 'r+') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
             first_jrun_dates = json.load(f)
         first_jrun_dates.pop(str(user.id), None)
-        with open('first_jrun_date.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
             json.dump(first_jrun_dates, f)
     except FileNotFoundError:
         pass
@@ -370,27 +332,27 @@ def reset_message_count():
     message_count = {}
 
 def reset_last_message_time():
-    with open('last_messages.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
         json.dump({}, f)
 
 def reset_reaction_count():
-    with open('reaction_data.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
         json.dump({}, f)
 
 @bot.event
 async def on_member_remove(member):
     user_id = member.id
     try:
-        with open('presence_data.json', 'r+') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'r+') as f:
             presence_data = json.load(f)
     except FileNotFoundError:
-        with open('presence_data.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
             json.dump({}, f)
         presence_data = {}
     user_data = presence_data.get(str(user_id), {'join_date': None})
     now = datetime.datetime.now(datetime.timezone.utc)
     presence_data[str(user_id)] = {'join_date': None}
-    with open('presence_data.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
         json.dump(presence_data, f)
 
 def give_jrun_for_presence(user):
@@ -398,10 +360,10 @@ def give_jrun_for_presence(user):
     balance = bank.get_balance(user.id)
     if balance > 0:
         try:
-            with open('first_jrun_date.json', 'r+') as f:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
                 first_jrun_dates = json.load(f)
         except FileNotFoundError:
-            with open('first_jrun_date.json', 'w') as f:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
                 json.dump({}, f)
             first_jrun_dates = {}
         first_jrun_date = first_jrun_dates.get(str(user.id), None)
@@ -415,7 +377,7 @@ def give_jrun_for_presence(user):
                 if "Огонь" in [role.name for role in user.roles]:
                     bank.increment_balance(user.id, 2)
                 first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-                with open('first_jrun_date.json', 'w') as f:
+                with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
                     json.dump(first_jrun_dates, f)
 
 def give_jrun_for_message(user_id): # Получение жруна за ежедневное сообщение
@@ -453,26 +415,26 @@ async def convert_to_member(ctx, argument):
     return member
 
 def check_last_reward_time(user_id):
-    if not os.path.exists('JavaS/rewards.json'):
-        with open('JavaS/rewards.json', 'w') as f:
+    if not os.path.exists('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json'):
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
             json.dump({}, f, indent=4)
     try:
-        with open('JavaS/rewards.json', 'r') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'r') as f:
             rewards = json.load(f)
     except json.JSONDecodeError:
         rewards = {}
-        with open('JavaS/rewards.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
             json.dump(rewards, f, indent=4)
     if str(user_id) not in rewards:
         rewards[str(user_id)] = {'last_reward_time': 0}
-        with open('JavaS/rewards.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
             json.dump(rewards, f, indent=4)
     return rewards[str(user_id)]['last_reward_time']
 
 def update_last_reward_time(user_id):
     rewards = check_last_reward_time(user_id)
     rewards[str(user_id)] = {'last_reward_time': time.time()}
-    with open('JavaS/rewards.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
         json.dump(rewards, f, indent=4)
 
 def can_receive_reward(user_id):
@@ -480,13 +442,16 @@ def can_receive_reward(user_id):
     current_time = time.time()
     return current_time - last_reward_time >= 86400  # 86400 секунд = 24 часа
 
-def give_jrun_for_reaction(reaction, user): # Жрун за реакцию в канале 1 раз в день
+def give_jrun_for_reaction(reaction, user): 
     if reaction.message.channel.id == reaction_channel_id:
         now = datetime.datetime.now(datetime.timezone.utc)
         user_id = user.id
         try:
             with open('reaction_data.json', 'r+') as f:
-                reaction_data = json.load(f)
+                try:
+                    reaction_data = json.load(f)
+                except json.JSONDecodeError:
+                    reaction_data = {}
         except FileNotFoundError:
             with open('reaction_data.json', 'w') as f:
                 json.dump({}, f)
@@ -506,10 +471,10 @@ def give_jrun_for_reaction(reaction, user): # Жрун за реакцию в к
 
 def update_last_message_time(user_id):
     try:
-        with open('last_messages.json', 'r+') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'r+') as f:
             last_messages = json.load(f)
     except FileNotFoundError:
-        with open('last_messages.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
             json.dump({}, f)
         last_messages = {}
     except json.JSONDecodeError:
@@ -523,13 +488,13 @@ def update_last_message_time(user_id):
         last_message_date = None
     if not last_message_date or now - last_message_date > datetime.timedelta(days=1):
         last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
-        with open('last_messages.json', 'w') as f:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
             json.dump(last_messages, f)
         return True
     return False
 
 def reset_last_message_time():
-    with open('last_messages.json', 'w') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
         json.dump({}, f)
 
 def get_today():
@@ -537,7 +502,7 @@ def get_today():
 
 def read_data():
     try:
-        with open('JavaS/percentages.json', 'r') as file:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/percentages.json', 'r') as file:
             return json.load(file)
     except FileNotFoundError:
         return {}
@@ -546,11 +511,11 @@ def read_data():
         return {}
 
 def write_data(data):
-    with open('JavaS/percentages.json', 'w') as file:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/percentages.json', 'w') as file:
         json.dump(data, file, indent=4)
 
 def update_last_reward_time(member_id):
-    with open('JavaS/rewards.json', 'r+') as f:
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'r+') as f:
         try:
             rewards = json.load(f)
         except json.JSONDecodeError:
@@ -601,76 +566,6 @@ def draw_lottery(user_id):
 
     return "К сожалению, вы ничего не выиграли."
 
-# Команда - Время
-async def get_time(interaction):
-    time1 = pytz.timezone('Asia/Sakhalin')
-    time2 = datetime.datetime.now(time1)
-    time3 = time2 + datetime.timedelta(hours=0)
-    formatted_time = time3.strftime("%H:%M:%S")
-    await interaction.response.send_message(f"Сейчас у Чудачки: {formatted_time}")
-    print('Команда Время')
-
-# Команда - Vk Play
-async def vk_play(interaction):
-    await interaction.response.send_message("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
-
-# Команда - Twitch
-async def Twitch(interaction):
-    await interaction.response.send_message("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
-
-# Команда - Дискорд
-async def discord_info(interaction):
-    await interaction.response.send_message("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
-# Команда - ПК
-async def pc_info(ctx=None, interaction=None):
-    if interaction:
-        await interaction.response.send_message("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
-    else:
-        await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
-
-# Команда - Мемы
-async def memes(ctx=None, interaction=None):
-    if interaction:
-        await interaction.response.send_message("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
-    else:
-        await ctx.send("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
-
-# Команда - Бусти
-async def bysti(ctx=None, interaction=None):
-    if interaction:
-        await interaction.response.send_message("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
-    else:
-        await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
-
-# Команда - Где стриим
-async def stream_info(ctx=None, interaction=None):
-    excuses = [
-        "Сегодня уже не успеем, ждем завтра.",
-        "Стрим будет в следующий раз, ожидайте!",
-        "Планируем стрим на ближайшее время, следите за обновлениями."
-    ]
-    excuse = random.choice(excuses)
-    if interaction:
-        await interaction.response.send_message(f"{excuse}")
-    else:
-        await ctx.send(f"{excuse}")
-
-# Команда - Дота
-async def play_dota(ctx=None, interaction=None):
-    if interaction:
-        await interaction.response.send_message(f"Чудачка поиграет в доту за много-много рублей.")
-    else:
-        await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
-
-# Команда - Танки
-async def play_tanki(ctx=None, interaction=None):
-    message = "```Чудо не поиграет в Танки 🤡```"
-    if interaction:
-        await interaction.response.send_message(message)
-    else:
-       await ctx.send(f"```Чудо не поиграет в Танки 🤡```")
-
-
 def has_moderator_role(user): # роли модеров
     moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
     for role in user.roles:
@@ -684,7 +579,7 @@ schedule.every().day.at("23:59").do(check_jopnik_balance)
 schedule.every().day.at("00:00").do(reset_message_count)
 schedule.every().day.at("00:00").do(reset_last_message_time)
 schedule.every().day.at("00:00").do(reset_reaction_count)
-
+schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00
 
 #запуск Бота
 @bot.event
@@ -811,117 +706,58 @@ async def on_interaction(interaction):
         if interaction.data.get('custom_id') == 'shop':
             await handle_shop_interaction(interaction)
 
-@bot.command(name='меню')
-async def menu(ctx):
-    embed = discord.Embed(title='Меню', description='Здесь вы можете найти ссылки и команды')
-    embed.add_field(name='Время', value='!Время', inline=False)
-    embed.add_field(name='Vk Play', value='!Вкплей', inline=False)
-    embed.add_field(name='Twitch', value='!Твич', inline=False)
-    embed.add_field(name='Дискорд', value='!Дискорд', inline=False)
-    embed.add_field(name='ПК', value='!ПК', inline=False)
-    embed.add_field(name='Мемы', value='!Мемы', inline=False)
-    embed.add_field(name='Бусти', value='!Бусти', inline=False)
-    embed.add_field(name='Гдестрим', value='!Гдестрим', inline=False)
-    embed.add_field(name='Дота', value='!Дота', inline=False)
-    embed.add_field(name='Танки', value='!Танки', inline=False)
-
-    view = discord.ui.View()
-    view.add_item(MainMenu())
-    view.add_item(discord.ui.Button(label='Магазин', custom_id='shop'))
-
-    await ctx.send(embed=embed, view=view)
-
 # Команда - Время
 @bot.command(name='Время')
-async def get_time(ctx, **kwargs):
+async def get_time(ctx):
     time1 = pytz.timezone('Asia/Sakhalin')
     time2 = datetime.datetime.now(time1)
     time3 = time2 + datetime.timedelta(hours=0)
     formatted_time = time3.strftime("%H:%M:%S")
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message(f"Сейчас у Чудачки: {formatted_time}")
-    else:
-        await ctx.send(f"Сейчас у Чудачки: {formatted_time}")
+    await ctx.send(f"Сейчас у Чудачки: {formatted_time}")
     print('Команда Время')
-
 # Команда - Vk Play
 @bot.command(name='Вкплей')
-async def vk_play(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
-    else:
-        await ctx.send("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
-
+async def vk_play(ctx):
+    await ctx.send("# [Чудачка - Выживание Vk Play Live](https://live.vkplay.ru/chudachkapw)")
 # Команда - Twitch
 @bot.command(name='Твич')
-async def Twitch(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
-    else:
-        await ctx.send("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
-
+async def Twitch(ctx):
+    await ctx.send("# [Чудачка - Выживание Twitch](https://www.twitch.tv/chudachkafun)")
 # Команда - Дискорд
 @bot.command(name='Дискорд')
-async def discord_info(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
-    else:
-        await ctx.send("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
-
+async def discord_info(ctx):
+    await ctx.send("# [Присоединяйтесь к нашему серверу Discord!](https://discord.com/invite/pQ9zfKzmCj)")
 # Команда - ПК
 @bot.command(name='ПК')
-async def pc_info(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
-    else:
-        await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
-
+async def pc_info(ctx):
+    await ctx.send("## Конфиг ПК Чудачки\n Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz\n Motherboard — Gigabyte GA-Z97P-D3\n MSI GeForce RTX 4060 GAMING X")
 # Команда - Мемы
 @bot.command(name='мем')
-async def memes(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
-    else:
+async def memes(ctx):
         await ctx.send("# [Кинь мем Чудачке на трансляцию!](https://memealerts.com/643f478676d4d6f40e06de95)")
-
 # Команда - Бусти
 @bot.command(name='бусти')
-async def bysti(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
-    else:
-        await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
-
+async def bysti(ctx):
+    await ctx.send("# [Поддержи Чудачку на бусти!](https://boosty.to/chudachkapw/purchase/784395?share=subscription_link)")
 # Команда - Где стриим
 @bot.command(name='Гдестрим')
-async def stream_info(ctx, **kwargs):
+async def stream_info(ctx):
     excuses = [
         "Сегодня уже не успеем, ждем завтра.",
         "Стрим будет в следующий раз, ожидайте!",
         "Планируем стрим на ближайшее время, следите за обновлениями."
     ]
     excuse = random.choice(excuses)
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message(f"{excuse}")
-    else:
-        await ctx.send(f"{excuse}")
-
+    await ctx.send(f"{excuse}")
 # Команда - Дота
 @bot.command(name='дота')
-async def play_dota(ctx, **kwargs):
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message(f"Чудачка поиграет в доту за много-много рублей.")
-    else:
-        await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
-
+async def play_dota(ctx):
+    await ctx.send(f"Чудачка поиграет в доту за много-много рублей.")
 # Команда - Танки
 @bot.command(name='танки')
-async def play_tanki(ctx, **kwargs):
+async def play_tanki(ctx):
     message = "```Чудо не поиграет в Танки 🤡```"
-    if 'interaction' in kwargs:
-        await kwargs['interaction'].response.send_message(message)
-    else:
-        await ctx.send(message)
+    await ctx.send(message)
 
 
 # !стрим
@@ -1144,44 +980,6 @@ async def help_mod(ctx):
 
 """
     await ctx.send(guide)
-
-
-#Bank Sistem Жруны!
-
-#@bot.command(name='выдать')
-#async def give_jrun(ctx, user: discord.Member, amount: int):
-#    print("Трабл Запуска")
-#    try:
-#        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
-#        print("Трабл строка 1")
-#        if account.balance is not None:
-#            account.give_jrun(user.id, amount)
-#            print("Трабл строка 2")
-#            await ctx.send(f'Начислено {amount} Жрунов пользователю {user.mention}!')
-#        else:
-#            await ctx.send(f'Пользователь {user.mention} не имеет счета!')
-#    except Exception as e:
-#        await ctx.send(f'Ошибка: {e}')
-
-#@bot.command(name='снять')
-#async def withdraw(ctx, user: discord.Member, amount: int):
-#    print("Трабл запуска")
-#    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user.id)
-#    print("Трабл строка 1")
-#    try:
-#        account.withdraw(amount)
-#        print("Трабл строка 2")
-#        await ctx.send(f'Снято {amount} Жрунов с счета пользователя {user.mention}!')
-#        print("Трабл строка 3")
-#    except ValueError:
-#        print("Трабл финал")
-#        await ctx.send('Недостаточно средств на счете!')
-
-#@bot.command(name='баланс')
-#async def balance(ctx, user: discord.Member):
-#    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-#    balance = bank.get_balance(user.id)
-#    await ctx.send(f'Баланс пользователя {user.mention}: {balance} Жрунов')
 
 @bot.command(name='mod_выдать')
 async def mod_give_jrun(ctx, user: discord.Member, amount: int):
