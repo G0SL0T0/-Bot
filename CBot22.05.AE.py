@@ -29,7 +29,6 @@ rewards = {
 }
 presence_data = {} # похождения юзеров на сервере (жруны за 7 дней)
 reaction_channel_id = 829958307002187788  # ID канала
-reaction_emoji = '👍'  # реакция, за которую начисляется жрун
 
 def reset_message_count():
     message_count.clear()
@@ -136,7 +135,7 @@ class BankAccount:
         return self.bank.get_balance(self.owner)
 
     def give_jrun(self, user_id, amount=1):
-        print("Трабл гив жрун")
+        print("Трабл гив жрун ", {user_id})
         self.bank.increment_balance(user_id, amount)
         self.bank.save_json()
 
@@ -158,17 +157,37 @@ class Jopnik: # Жопник, работа с файлами
 
 
 # Функции
-def load_top_list():
+def has_moderator_role(user): # роли модеров
+    moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
+    for role in user.roles:
+        if role.name in moderator_roles:
+            return True
+
+def update_last_message_time(user_id): #Файл с последним сообщением
     try:
-        with open(TOP_LIST_FILE, "r") as file:
-            return json.load(file)
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'r+') as f:
+            last_messages = json.load(f)
     except FileNotFoundError:
-        return []
-
-def save_top_list(top_list):
-    with open(TOP_LIST_FILE, "w") as file:
-        json.dump(top_list, file)
-
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
+            json.dump({}, f)
+        last_messages = {}
+    except json.JSONDecodeError:
+        last_messages = {}
+    user_id_str = str(user_id)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    last_message_time = last_messages.get(user_id_str, {'last_message': None})['last_message']
+    if last_message_time is not None:
+        last_message_date = datetime.datetime.strptime(last_message_time, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+    else:
+        last_message_date = None
+    if not last_message_date or now - last_message_date > datetime.timedelta(days=1):
+        last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
+            json.dump(last_messages, f)
+        return True
+    return False
+################################################################################################
+################################################################################################
 def add_jopnik_commission(amount):
     jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['balance'] += amount
@@ -285,7 +304,7 @@ def set_first_jrun_date(user): # дата получения первого жр
     with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
         json.dump(first_jrun_dates, f)
 
-def give_jrun_for_all_members():
+def give_jrun_for_all_members(): #Пополнения жрунов от роли
     for member in bot.get_all_members():
         if "Опытный" in [role.name for role in member.roles]:
             account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
@@ -306,54 +325,57 @@ def remove_roles_if_needed(user_id, new_asses_count): # удаление рол�
             if role in user.roles:
                 user.remove_roles(role)
 
-def minus_asses(user_number, amount): # Понижение кол-ва жопок
-    top_list = load_top_list()
-    if user_number < 1 or user_number > len(top_list):
-        return
-    new_asses_count = top_list[user_number - 1]['жопки'] - amount
-    remove_roles_if_needed(top_list[user_number - 1]['id'], new_asses_count)
-    top_list[user_number - 1]['жопки'] = new_asses_count
-    save_top_list(top_list)
+################################################################################################
+################################################################################################
+def give_jrun_for_message(user_id, guild_id):
+    if user_id not in message_count:
+        message_count[user_id] = 0
+    message_count[user_id] += 1
+    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
+    account.give_jrun(user_id, 1)
+    member = bot.get_guild(guild_id).get_member(user_id)
+    if "Огонь" in [role.name for role in member.roles]:
+        account.give_jrun(user_id, 1) 
+    return True
 
-def reset_balance_on_leave(user): # Очищение баланса при лива с сервера
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    bank.set_balance(user.id, 0)
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
-            first_jrun_dates = json.load(f)
-        first_jrun_dates.pop(str(user.id), None)
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
-            json.dump(first_jrun_dates, f)
-    except FileNotFoundError:
-        pass
+def give_jrun_for_reaction(reaction, user): 
+    if reaction.message.channel.id == reaction_channel_id:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        user_id = user.id
+        try:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'r+') as f:
+                try:
+                    reaction_data = json.load(f)
+                except json.JSONDecodeError:
+                    reaction_data = {}
+        except FileNotFoundError:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
+                json.dump({}, f)
+            reaction_data = {}
+        user_data = reaction_data.get(str(user_id), {'last_reaction': None})
+        last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc) if user_data['last_reaction'] else None
+        if not last_reaction_date or now - last_reaction_date > datetime.timedelta(days=1):
+            reaction_data[str(user_id)] = {'last_reaction': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
+                json.dump(reaction_data, f)
+            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
+            account.give_jrun(user_id, 1)
+            print ("Выдача 1-ого жруна за реакцию")
+            if "Огонь" in [role.name for role in user.roles]:
+                account.give_jrun(user_id, 1)
+                print ("Выдача 2-ого жруна за реакцию")
+            return True
+    return False
 
-def reset_message_count():
-    global message_count
-    message_count = {}
-
-def reset_last_message_time():
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
-        json.dump({}, f)
-
-def reset_reaction_count():
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
-        json.dump({}, f)
-
-@bot.event
-async def on_member_remove(member):
-    user_id = member.id
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'r+') as f:
-            presence_data = json.load(f)
-    except FileNotFoundError:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
-            json.dump({}, f)
-        presence_data = {}
-    user_data = presence_data.get(str(user_id), {'join_date': None})
-    now = datetime.datetime.now(datetime.timezone.utc)
-    presence_data[str(user_id)] = {'join_date': None}
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
-        json.dump(presence_data, f)
+def give_jrun_for_all_members():
+    for member in bot.get_all_members():
+        if update_last_message_time(member.id):
+            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
+            account.give_jrun(member.id, 1)
+            if "Огонь" in [role.name for role in member.roles]:
+                print("Получение жруна Алл мемберс")
+                account.give_jrun(member.id, 1)
+        give_jrun_for_presence(member)
 
 def give_jrun_for_presence(user):
     bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
@@ -379,95 +401,47 @@ def give_jrun_for_presence(user):
                 first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
                 with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
                     json.dump(first_jrun_dates, f)
+################################################################################################
+################################################################################################
+def reset_message_count():
+    global message_count
+    message_count = {}
 
-def give_jrun_for_message(user_id): # Получение жруна за ежедневное сообщение
-    if user_id not in message_count:
-        message_count[user_id] = 0
-    message_count[user_id] += 1
-    account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
-    account.give_jrun(user_id, 1)
-    if "Огонь" in [role.name for role in user.roles]:
-        account.give_jrun(user_id, 1) 
-    return True
+def reset_last_message_time():
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
+        json.dump({}, f)
+
+def reset_reaction_count():
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
+        json.dump({}, f)
+
+##############################################################################################
+
+def reset_balance_on_leave(user): # Очищение баланса при лива с сервера
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    bank.set_balance(user.id, 0)
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
+            first_jrun_dates = json.load(f)
+        first_jrun_dates.pop(str(user.id), None)
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+            json.dump(first_jrun_dates, f)
+    except FileNotFoundError:
+        pass
+
+def load_top_list():
+    try:
+        with open(TOP_LIST_FILE, "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
+
+def save_top_list(top_list):
+    with open(TOP_LIST_FILE, "w") as file:
+        json.dump(top_list, file)
 
 def get_current_date():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-def calculate_price():
-    print('1.0');
-    start_date = datetime(2024, 4, 24)
-    print('1');
-    today = datetime.now()
-    print('2');
-    delta = today - start_date
-    print('3');
-    price_increment = delta.days * 11
-    print('4');
-    return 50000 + price_increment
-
-async def convert_to_member(ctx, argument):
-    try:
-        member = await commands.MemberConverter().convert(ctx, argument)
-    except commands.MemberNotFound:
-        member = ctx.guild.get_member_named(argument)
-    if not member:
-        raise commands.BadArgument(f'Пользователь "{argument}" не найден.')
-    return member
-
-def check_last_reward_time(user_id):
-    if not os.path.exists('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json'):
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
-            json.dump({}, f, indent=4)
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'r') as f:
-            rewards = json.load(f)
-    except json.JSONDecodeError:
-        rewards = {}
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
-            json.dump(rewards, f, indent=4)
-    if str(user_id) not in rewards:
-        rewards[str(user_id)] = {'last_reward_time': 0}
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
-            json.dump(rewards, f, indent=4)
-    return rewards[str(user_id)]['last_reward_time']
-
-def update_last_reward_time(user_id):
-    rewards = check_last_reward_time(user_id)
-    rewards[str(user_id)] = {'last_reward_time': time.time()}
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
-        json.dump(rewards, f, indent=4)
-
-def can_receive_reward(user_id):
-    last_reward_time = check_last_reward_time(user_id)
-    current_time = time.time()
-    return current_time - last_reward_time >= 86400  # 86400 секунд = 24 часа
-
-def give_jrun_for_reaction(reaction, user): 
-    if reaction.message.channel.id == reaction_channel_id:
-        now = datetime.datetime.now(datetime.timezone.utc)
-        user_id = user.id
-        try:
-            with open('reaction_data.json', 'r+') as f:
-                try:
-                    reaction_data = json.load(f)
-                except json.JSONDecodeError:
-                    reaction_data = {}
-        except FileNotFoundError:
-            with open('reaction_data.json', 'w') as f:
-                json.dump({}, f)
-            reaction_data = {}
-        user_data = reaction_data.get(str(user_id), {'last_reaction': None})
-        last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc) if user_data['last_reaction'] else None
-        if not last_reaction_date or now - last_reaction_date > datetime.timedelta(days=1):
-            reaction_data[str(user_id)] = {'last_reaction': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
-            with open('reaction_data.json', 'w') as f:
-                json.dump(reaction_data, f)
-            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
-            account.give_jrun(user_id, 1)
-            if "Огонь" in [role.name for role in user.roles]:
-                account.give_jrun(user_id, 1)
-            return True
-    return False
 
 def update_last_message_time(user_id):
     try:
@@ -530,52 +504,12 @@ async def send_private_message(member, content):
         await member.send(content)
     except discord.Forbidden:
         await ctx.send(f"Невозможно отправить личное сообщение пользователю {member.display_name}.")
-
-def load_ticket_data():
-    try:
-        with open(ticket_data_file, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-def save_ticket_data(ticket_data):
-    with open(ticket_data_file, "w") as file:
-        json.dump(ticket_data, file, indent=4)
-
-def add_tickets(user_id, amount):
-    ticket_data = load_ticket_data()
-    user_id_str = str(user_id)
-    if user_id_str in ticket_data:
-        ticket_data[user_id_str]['tickets'] += amount
-    else:
-        ticket_data[user_id_str] = {'tickets': amount}
-    save_ticket_data(ticket_data)
-
-def get_user_tickets(user_id):
-    ticket_data = load_ticket_data()
-    return ticket_data.get(str(user_id), {'tickets': 0})['tickets']
-
-def draw_lottery(user_id):
-    user_tickets = get_user_tickets(user_id)
-    if user_tickets == 0:
-        return "У вас нет билетов."
-    for ticket_threshold, prize_dict in rewards.items():
-        if user_tickets >= ticket_threshold:
-            prize = random.choices(list(prize_dict.keys()), list(prize_dict.values()))[0]
-            return f"Поздравляем! Вы выиграли {prize}!"
-
-    return "К сожалению, вы ничего не выиграли."
-
-def has_moderator_role(user): # роли модеров
-    moderator_roles = ['Чудо', 'Влад', 'Сфера', 'роль1']
-    for role in user.roles:
-        if role.name in moderator_roles:
-            return True
+################################################################################################
 
 schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по времени Сахалину
 schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)  # вызывать функцию каждый день в 00:00 получение жрунов
 schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00 чек на жопки
-schedule.every().day.at("23:59").do(check_jopnik_balance)
+#schedule.every().week.at("23:59").do(check_jopnik_balance)
 schedule.every().day.at("00:00").do(reset_message_count)
 schedule.every().day.at("00:00").do(reset_last_message_time)
 schedule.every().day.at("00:00").do(reset_reaction_count)
@@ -604,7 +538,7 @@ async def on_message(message):
         return
 
     user_id = message.author.id
-    moderator_roles = ["Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк"]
+    moderator_roles = ["Чудо", "Сфера", "Влад", "роль1", "Берсерк"]
     is_moderator = any(role.name in moderator_roles for role in message.author.roles)
 
     if is_moderator:
@@ -617,7 +551,7 @@ async def on_message(message):
         message_count[user_id]["count"] = 0
     message_count[user_id]["last_message_time"] = current_time
     message_count[user_id]["count"] += 1
-
+#convert_to_member
 # Ошибка в написанни команды
 @bot.event
 async def on_command_error(ctx, error):
@@ -626,14 +560,12 @@ async def on_command_error(ctx, error):
         await ctx.send(response)
 
 # Ответ на любое сообщение
-@bot.event
+@bot.event 
 async def on_message(message):
     if message.author == bot.user:
         return
     if update_last_message_time(message.author.id):
-        account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', message.author.id)
-        account.give_jrun(message.author.id, 1)
-        await message.add_reaction('🔥')
+        give_jrun_for_message(message.author.id, message.guild.id)
     await bot.process_commands(message)
 
 @bot.event
@@ -705,6 +637,22 @@ async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.component:
         if interaction.data.get('custom_id') == 'shop':
             await handle_shop_interaction(interaction)
+
+@bot.event
+async def on_member_remove(member):
+    user_id = member.id
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'r+') as f:
+            presence_data = json.load(f)
+    except FileNotFoundError:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
+            json.dump({}, f)
+        presence_data = {}
+    user_data = presence_data.get(str(user_id), {'join_date': None})
+    now = datetime.datetime.now(datetime.timezone.utc)
+    presence_data[str(user_id)] = {'join_date': None}
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/presence_data.json', 'w') as f:
+        json.dump(presence_data, f)
 
 # Команда - Время
 @bot.command(name='Время')
@@ -873,26 +821,26 @@ async def пнуть(ctx, *, user: discord.Member):
 
 
 # Лотерейка - test version
-@bot.command(name='add_tickets')
-@commands.has_any_role("Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк")
-async def add_tickets_command(ctx, member: discord.Member, amount: int):
-    if amount <= 0:
-        await ctx.send("Количество билетов должно быть положительным.")
-        return
-    add_tickets(member.id, amount)
-    await ctx.send(f"{amount} билетов добавлено пользователю {member.mention}.")
+#@bot.command(name='add_tickets')
+#@commands.has_any_role("Чудо", "Сфера", "Влад", "Сержант апельсин", "Берсерк")
+#async def add_tickets_command(ctx, member: discord.Member, amount: int):
+#    if amount <= 0:
+#        await ctx.send("Количество билетов должно быть положительным.")
+#        return
+#    add_tickets(member.id, amount)
+#    await ctx.send(f"{amount} билетов добавлено пользователю {member.mention}.")
 
 # Мои билетики
-@bot.command(name='my_tickets')
-async def my_tickets_command(ctx):
-    tickets = get_user_tickets(ctx.author.id)
-    await ctx.send(f"У вас {tickets} билетов.")
+#@bot.command(name='my_tickets')
+#async def my_tickets_command(ctx):
+#    tickets = get_user_tickets(ctx.author.id)
+#    await ctx.send(f"У вас {tickets} билетов.")
 
 # крутка билетиков
-@bot.command(name='lottery')
-async def lottery_command(ctx):
-    result = draw_lottery(ctx.author.id)
-    await ctx.send(result)
+#@bot.command(name='lottery')
+#async def lottery_command(ctx):
+#    result = draw_lottery(ctx.author.id)
+#    await ctx.send(result)
 
 # HELP команды жрунов
 @bot.command(name='помощь')
