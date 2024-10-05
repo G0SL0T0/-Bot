@@ -28,7 +28,8 @@ rewards = {
     50: {"Tier 3": 1.0}
 }
 presence_data = {} # похождения юзеров на сервере (жруны за 7 дней)
-reaction_channel_id = 829958307002187788  # ID канала
+reaction_channel_id = 1179745995345645609  # ID канала
+DATA_DIR = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/'
 
 def reset_message_count():
     message_count.clear()
@@ -141,7 +142,7 @@ class BankAccount:
 
 class Jopnik: # Жопник, работа с файлами
     def __init__(self, filename):
-        self.filename = filename
+        self.filename = os.path.join(DATA_DIR, filename)
         self.data = self.load_data()
 
     def load_data(self):
@@ -149,12 +150,45 @@ class Jopnik: # Жопник, работа с файлами
             with open(self.filename, 'r') as f:
                 return json.load(f)
         except FileNotFoundError:
+            with open(self.filename, 'w') as f:
+                json.dump({'balance': 0, 'commission': 5, 'event_active': False, 'event_start_balance': 0, 'event_end_time': None, 'top_list': []}, f)
             return {'balance': 0, 'commission': 5, 'event_active': False, 'event_start_balance': 0, 'event_end_time': None, 'top_list': []}
-
     def save_data(self):
         with open(self.filename, 'w') as f:
+            print(f"Файл {self.filename} открыт для записи.")
             json.dump(self.data, f)
+            print(f"Данные сохранены в файл {self.filename}.")
 
+    def add_jopnik_commission(self, amount):
+        self.data['balance'] += amount
+        self.save_data()
+
+    def get_jopnik_balance(self):
+        return self.data['balance']
+
+    def get_jopnik_commission(self):
+        return self.data['commission']
+
+    def start_jopnik_event(self):
+        self.data['event_active'] = True
+        self.data['event_start_balance'] = self.data['balance']
+        self.save_data()
+
+    def end_jopnik_event(self):
+        if self.data['balance'] < 68:
+            self.data['commission'] = 2
+        self.data['event_active'] = False
+        self.save_data()
+
+    def get_jopnik_event_status(self):
+        return self.data['event_active']
+
+    def get_jopnik_top_list(self):
+        return self.data['top_list']
+
+    def add_to_jopnik_top_list(self, user_id):
+        self.data['top_list'].append(user_id)
+        self.save_data()
 
 # Функции
 def has_moderator_role(user): # роли модеров
@@ -203,6 +237,7 @@ def check_jopnik_balance(): # проверка баланса жопника
 def start_jopnik_event(): # запуск ивента
     jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['event_active'] = True
+    jopnik.data['event_start_balance'] = jopnik.data['balance']
     jopnik.save_data()
     enable_zadobrit_command()
     schedule.every().day.at("00:00").do(end_jopnik_event)
@@ -226,7 +261,7 @@ def calculate_rewards(initial_balance): # Топ 5 за ивент
     save_rewards(rewards)
 
 def save_rewards(rewards): # save наград
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rewards.json', 'w') as f:
+    with open(DATA_DIR + 'rewards.json', 'w') as f:
         json.dump(rewards, f)
 
 def enable_zadobrit_command(): # функция для !задобрить
@@ -260,34 +295,41 @@ def save_zadobrit_top(top_list): # топ Задобрителей
     jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
     jopnik.data['top_list'] = top_list
 
-def get_commission(): #коммисия жопника
-    commission = random.randint(1, 10)
-    return commission
+def get_commission():
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
+    return jopnik.data['commission']
+
+def update_commission():
+    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
+    jopnik.data['commission'] = random.randint(1, 10)
+    jopnik.save_data()
 
 def check_requirements(user, role): # Магаз жопника
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    balance = bank.get_balance(user.id)
-    top_list = load_top_list()
-    user_info = next((x for x in top_list if x['никнейм'] == user.name), None)
+    jopnik = Jopnik('top_list.json')
+    top_list = jopnik.data
+    user_info = next((x for x in top_list if x['id'] == user.id), None)
     if user_info is None:
         return False
+    bank = Bank('Jrun_balance.json')
+    balance = bank.get_balance(user.id)
     if role == 'Продвинутый':
-        if balance < 30 + get_commission() or user_info['жопки'] < 5:
+        if user_info['жопки'] < 5 or balance < 30 + get_commission():
             return False
     elif role == 'Опытный':
-        if balance < 70 + get_commission() or user_info['жопки'] < 10:
+        if user_info['жопки'] < 10 or balance < 70 + get_commission():
             return False
     return True
 
 def check_roles(): # проверка на наличие жопок
-    top_list = load_top_list()
+    jopnik = Jopnik('top_list.json')
+    top_list = jopnik.data
     for user in bot.get_all_members():
-        user_info = next((x for x in top_list if x['никнейм'] == user.name), None)
+        user_info = next((x for x in top_list if x['id'] == user.id), None)
         if user_info is not None:
-            if 'Продвинутый' in [role.name for role in user.roles] and user_info['жопки'] < 5:
+            if user_info['жопки'] < 5 and 'Продвинутый' in [role.name for role in user.roles]:
                 role = discord.utils.get(user.guild.roles, name='Продвинутый')
                 user.remove_roles(role)
-            elif 'Опытный' in [role.name for role in user.roles] and user_info['жопки'] < 10:
+            if user_info['жопки'] < 10 and 'Опытный' in [role.name for role in user.roles]:
                 role = discord.utils.get(user.guild.roles, name='Опытный')
                 user.remove_roles(role)
 
@@ -325,9 +367,31 @@ def remove_roles_if_needed(user_id, new_asses_count): # удаление рол�
             if role in user.roles:
                 user.remove_roles(role)
 
+async def handle_buy_advanced_interaction(interaction):
+    if not check_requirements(interaction.user, 'Продвинутый'):
+        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
+        return
+    bank = Bank('Jrun_balance.json')
+    balance = bank.get_balance(interaction.user.id)
+    bank.decrement_balance(interaction.user.id, 30 + get_commission())
+    role = discord.utils.get(interaction.guild.roles, name='Продвинутый')
+    await interaction.user.add_roles(role)
+    await interaction.response.send_message('Вы успешно купили роль Продвинутый!')
+
+async def handle_buy_experienced_interaction(interaction):
+    if not check_requirements(interaction.user, 'Опытный'):
+        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
+        return
+    bank = Bank('Jrun_balance.json')
+    balance = bank.get_balance(interaction.user.id)
+    bank.decrement_balance(interaction.user.id, 70 + get_commission())
+    role = discord.utils.get(interaction.guild.roles, name='Опытный')
+    await interaction.user.add_roles(role)
+    await interaction.response.send_message('Вы успешно купили роль Опытный!')
+
 ################################################################################################
 ################################################################################################
-def give_jrun_for_message(user_id, guild_id):
+def give_jrun_for_message(user_id, guild_id, message):
     if user_id not in message_count:
         message_count[user_id] = 0
     message_count[user_id] += 1
@@ -336,6 +400,9 @@ def give_jrun_for_message(user_id, guild_id):
     member = bot.get_guild(guild_id).get_member(user_id)
     if "Огонь" in [role.name for role in member.roles]:
         account.give_jrun(user_id, 1) 
+    async def add_reaction():
+        await message.add_reaction('✅')
+    bot.loop.create_task(add_reaction())
     return True
 
 def give_jrun_for_reaction(reaction, user): 
@@ -343,22 +410,22 @@ def give_jrun_for_reaction(reaction, user):
         now = datetime.datetime.now(datetime.timezone.utc)
         user_id = user.id
         try:
-            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'r+') as f:
+            with open(DATA_DIR + 'reaction_data.json', 'r+') as f:
                 try:
                     reaction_data = json.load(f)
                 except json.JSONDecodeError:
                     reaction_data = {}
         except FileNotFoundError:
-            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
+            with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                 json.dump({}, f)
             reaction_data = {}
         user_data = reaction_data.get(str(user_id), {'last_reaction': None})
         last_reaction_date = datetime.datetime.strptime(user_data['last_reaction'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc) if user_data['last_reaction'] else None
         if not last_reaction_date or now - last_reaction_date > datetime.timedelta(days=1):
             reaction_data[str(user_id)] = {'last_reaction': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
-            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/reaction_data.json', 'w') as f:
+            with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                 json.dump(reaction_data, f)
-            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', user_id)
+            account = BankAccount(DATA_DIR + 'reaction_data.json', user_id)
             account.give_jrun(user_id, 1)
             print ("Выдача 1-ого жруна за реакцию")
             if "Огонь" in [role.name for role in user.roles]:
@@ -370,7 +437,7 @@ def give_jrun_for_reaction(reaction, user):
 def give_jrun_for_all_members():
     for member in bot.get_all_members():
         if update_last_message_time(member.id):
-            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
+            account = BankAccount(DATA_DIR + 'reaction_data.json', member.id)
             account.give_jrun(member.id, 1)
             if "Огонь" in [role.name for role in member.roles]:
                 print("Получение жруна Алл мемберс")
@@ -382,10 +449,10 @@ def give_jrun_for_presence(user):
     balance = bank.get_balance(user.id)
     if balance > 0:
         try:
-            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
+            with open(DATA_DIR + 'reaction_data.json', 'r+') as f:
                 first_jrun_dates = json.load(f)
         except FileNotFoundError:
-            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+            with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                 json.dump({}, f)
             first_jrun_dates = {}
         first_jrun_date = first_jrun_dates.get(str(user.id), None)
@@ -399,7 +466,7 @@ def give_jrun_for_presence(user):
                 if "Огонь" in [role.name for role in user.roles]:
                     bank.increment_balance(user.id, 2)
                 first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-                with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+                with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                     json.dump(first_jrun_dates, f)
 ################################################################################################
 ################################################################################################
@@ -511,9 +578,8 @@ schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)  # вызыва�
 schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00 чек на жопки
 #schedule.every().week.at("23:59").do(check_jopnik_balance)
 schedule.every().day.at("00:00").do(reset_message_count)
-schedule.every().day.at("00:00").do(reset_last_message_time)
 schedule.every().day.at("00:00").do(reset_reaction_count)
-schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00
+schedule.every().day.at("00:00").do(update_commission)
 
 #запуск Бота
 @bot.event
@@ -565,7 +631,7 @@ async def on_message(message):
     if message.author == bot.user:
         return
     if update_last_message_time(message.author.id):
-        give_jrun_for_message(message.author.id, message.guild.id)
+        give_jrun_for_message(message.author.id, message.guild.id, message)
     await bot.process_commands(message)
 
 @bot.event
@@ -573,7 +639,7 @@ async def on_reaction_add(reaction, user):
     if user == bot.user:
         return
     give_jrun_for_reaction(reaction, user)
-
+############################################################################################################
 @bot.event # обработчик кнопок !для магазина и !для Жопника
 async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.component:
@@ -601,9 +667,10 @@ async def zadobrit(interaction):
     await interaction.response.send_message(f'Вы задобрили жопника и получили {reward} жрунов!')
 
 async def handle_shop_interaction(interaction):
+    commission = get_commission()
     embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
-    embed.add_field(name='Продвинутый', value='30 жрунов + комиссия "Жопника"', inline=False)
-    embed.add_field(name='Опытный', value='70 жрунов + комиссия "Жопника"', inline=False)
+    embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
+    embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
 
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
@@ -637,6 +704,7 @@ async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.component:
         if interaction.data.get('custom_id') == 'shop':
             await handle_shop_interaction(interaction)
+############################################################################################################
 
 @bot.event
 async def on_member_remove(member):
