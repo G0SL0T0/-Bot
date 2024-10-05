@@ -5,7 +5,7 @@ from discord.ext import commands #только библиотека Discord.py
 import pytz
 from datetime import datetime, timedelta
 import random #рандом
-import shutil
+import shutil 
 import schedule
 import json # JSON файлы (Можно использовать базы данных!)
 import time
@@ -30,6 +30,7 @@ rewards = {
 presence_data = {} # похождения юзеров на сервере (жруны за 7 дней)
 reaction_channel_id = 1179745995345645609  # ID канала
 DATA_DIR = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/'
+BALANCE_FILE = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json'
 
 def reset_message_count():
     message_count.clear()
@@ -304,19 +305,20 @@ def update_commission():
     jopnik.data['commission'] = random.randint(1, 10)
     jopnik.save_data()
 
-def check_requirements(user, role): # Магаз жопника
-    jopnik = Jopnik('top_list.json')
-    top_list = jopnik.data
-    user_info = next((x for x in top_list if x['id'] == user.id), None)
-    if user_info is None:
-        return False
-    bank = Bank('Jrun_balance.json')
+def check_requirements(user, role): 
+    bank = Bank(BALANCE_FILE)
     balance = bank.get_balance(user.id)
+    asses = get_user_asses(user.id)
+    print(balance," - баланс 0 ", asses)
     if role == 'Продвинутый':
-        if user_info['жопки'] < 5 or balance < 30 + get_commission():
+        print(balance," - баланс 1 ", asses)
+        if balance < 30 + get_commission():
+            print(balance," - баланс 2 ", asses)
             return False
     elif role == 'Опытный':
-        if user_info['жопки'] < 10 or balance < 70 + get_commission():
+        print(balance," - баланс 1 ", asses)
+        if balance < 70 + get_commission():
+            print(balance," - баланс 2 ", asses)
             return False
     return True
 
@@ -324,12 +326,12 @@ def check_roles(): # проверка на наличие жопок
     jopnik = Jopnik('top_list.json')
     top_list = jopnik.data
     for user in bot.get_all_members():
-        user_info = next((x for x in top_list if x['id'] == user.id), None)
+        user_info = next((x for x in top_list if x.get('никнейм') == user.name), None)
         if user_info is not None:
-            if user_info['жопки'] < 5 and 'Продвинутый' in [role.name for role in user.roles]:
+            if user_info.get('жопки', 0) < 5 and 'Продвинутый' in [role.name for role in user.roles]:
                 role = discord.utils.get(user.guild.roles, name='Продвинутый')
                 user.remove_roles(role)
-            if user_info['жопки'] < 10 and 'Опытный' in [role.name for role in user.roles]:
+            if user_info.get('жопки', 0) < 10 and 'Опытный' in [role.name for role in user.roles]:
                 role = discord.utils.get(user.guild.roles, name='Опытный')
                 user.remove_roles(role)
 
@@ -371,24 +373,10 @@ async def handle_buy_advanced_interaction(interaction):
     if not check_requirements(interaction.user, 'Продвинутый'):
         await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
         return
-    bank = Bank('Jrun_balance.json')
-    balance = bank.get_balance(interaction.user.id)
-    bank.decrement_balance(interaction.user.id, 30 + get_commission())
-    role = discord.utils.get(interaction.guild.roles, name='Продвинутый')
-    await interaction.user.add_roles(role)
-    await interaction.response.send_message('Вы успешно купили роль Продвинутый!')
-
 async def handle_buy_experienced_interaction(interaction):
     if not check_requirements(interaction.user, 'Опытный'):
         await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
         return
-    bank = Bank('Jrun_balance.json')
-    balance = bank.get_balance(interaction.user.id)
-    bank.decrement_balance(interaction.user.id, 70 + get_commission())
-    role = discord.utils.get(interaction.guild.roles, name='Опытный')
-    await interaction.user.add_roles(role)
-    await interaction.response.send_message('Вы успешно купили роль Опытный!')
-
 ################################################################################################
 ################################################################################################
 def give_jrun_for_message(user_id, guild_id, message):
@@ -483,6 +471,16 @@ def reset_reaction_count():
         json.dump({}, f)
 
 ##############################################################################################
+def get_user_asses(user_id):
+    try:
+        with open(TOP_LIST_FILE, "r") as file:
+            top_list = json.load(file)
+            for user_info in top_list:
+                if user_info['никнейм'] == bot.get_user(user_id).name:
+                    return user_info['жопки']
+    except FileNotFoundError:
+        return 0
+    return 0
 
 def reset_balance_on_leave(user): # Очищение баланса при лива с сервера
     bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
@@ -671,7 +669,7 @@ async def handle_shop_interaction(interaction):
     embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
     embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
     embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
-
+## ID покупка
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
     view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
@@ -1050,13 +1048,16 @@ async def balance(ctx):
     balance = bank.get_balance(ctx.author.id)
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
+## Команда профиль - выводит стату пользователя (Жруны / жопки)
+
+
 @bot.command(name='магаз')
 async def shop(ctx):
     commission = get_commission()
     embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
     embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
     embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
-
+##Покупка через ID (user) --
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
     view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
