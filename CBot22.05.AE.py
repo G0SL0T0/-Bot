@@ -141,55 +141,42 @@ class BankAccount:
         self.bank.increment_balance(user_id, amount)
         self.bank.save_json()
 
-class Jopnik: # Жопник, работа с файлами
-    def __init__(self, filename):
-        self.filename = os.path.join(DATA_DIR, filename)
-        self.data = self.load_data()
+class Shop:
+    def __init__(self, shop_items):
+        self.shop_items = shop_items
+        print ("Насяла __init__")
+    
 
-    def load_data(self):
-        try:
-            with open(self.filename, 'r') as f:
-                return json.load(f)
-        except FileNotFoundError:
-            with open(self.filename, 'w') as f:
-                json.dump({'balance': 0, 'commission': 5, 'event_active': False, 'event_start_balance': 0, 'event_end_time': None, 'top_list': []}, f)
-            return {'balance': 0, 'commission': 5, 'event_active': False, 'event_start_balance': 0, 'event_end_time': None, 'top_list': []}
-    def save_data(self):
-        with open(self.filename, 'w') as f:
-            print(f"Файл {self.filename} открыт для записи.")
-            json.dump(self.data, f)
-            print(f"Данные сохранены в файл {self.filename}.")
+    async def button_callback(self, interaction: discord.Interaction):
+        print("насяла класс 1")
+        if interaction.data.custom_id == "role1":
+            item = "Роль 1"
+            price = 100
+        elif interaction.data.custom_id == "role2":
+            item = "Роль 2"
+            price = 200
+        elif interaction.data.custom_id == "role3":
+            item = "Роль 3"
+            price = 300
+        # Добавьте здесь свои кнопки
 
-    def add_jopnik_commission(self, amount):
-        self.data['balance'] += amount
-        self.save_data()
+        user_id = interaction.user.id
+        bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+        balance = bank.get_balance(user_id)
+        print("перевирка баласа")
+        if balance >= price:
+            bank.decrement_balance(user_id, price)
+            await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
+        else:
+            await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
 
-    def get_jopnik_balance(self):
-        return self.data['balance']
 
-    def get_jopnik_commission(self):
-        return self.data['commission']
-
-    def start_jopnik_event(self):
-        self.data['event_active'] = True
-        self.data['event_start_balance'] = self.data['balance']
-        self.save_data()
-
-    def end_jopnik_event(self):
-        if self.data['balance'] < 68:
-            self.data['commission'] = 2
-        self.data['event_active'] = False
-        self.save_data()
-
-    def get_jopnik_event_status(self):
-        return self.data['event_active']
-
-    def get_jopnik_top_list(self):
-        return self.data['top_list']
-
-    def add_to_jopnik_top_list(self, user_id):
-        self.data['top_list'].append(user_id)
-        self.save_data()
+shop = Shop({
+    "Роль 1": 100,
+    "Роль 2": 200,
+    "Роль 3": 300,
+    # Добавьте здесь свои товары
+})
 
 # Функции
 def has_moderator_role(user): # роли модеров
@@ -198,187 +185,28 @@ def has_moderator_role(user): # роли модеров
         if role.name in moderator_roles:
             return True
 
-def update_last_message_time(user_id): #Файл с последним сообщением
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'r+') as f:
-            last_messages = json.load(f)
-    except FileNotFoundError:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
-            json.dump({}, f)
-        last_messages = {}
-    except json.JSONDecodeError:
-        last_messages = {}
-    user_id_str = str(user_id)
-    now = datetime.datetime.now(datetime.timezone.utc)
-    last_message_time = last_messages.get(user_id_str, {'last_message': None})['last_message']
-    if last_message_time is not None:
-        last_message_date = datetime.datetime.strptime(last_message_time, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+################################################################################################
+################################################################################################
+####### Магазин 2.0  МАГАЗИН!
+
+
+async def menu_callback(self, interaction: discord.Interaction):
+    print("Начала функций")
+    item = interaction.data.values[0]
+    price = self.shop_items[item]
+    user_id = interaction.user.id
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(user_id)
+    if balance >= price:
+        bank.decrement_balance(user_id, price)
+        await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
     else:
-        last_message_date = None
-    if not last_message_date or now - last_message_date > datetime.timedelta(days=1):
-        last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
-            json.dump(last_messages, f)
-        return True
-    return False
+        await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
+
+
 ################################################################################################
 ################################################################################################
-def add_jopnik_commission(amount):
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    jopnik.data['balance'] += amount
-    jopnik.save_data()
-
-def check_jopnik_balance(): # проверка баланса жопника
-    now = datetime.datetime.now()
-    if now.weekday() == 6 and now.hour == 23 and now.minute == 59:
-        jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-        if jopnik.data['balance'] >= 100:
-            start_jopnik_event()
-
-def start_jopnik_event(): # запуск ивента
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    jopnik.data['event_active'] = True
-    jopnik.data['event_start_balance'] = jopnik.data['balance']
-    jopnik.save_data()
-    enable_zadobrit_command()
-    schedule.every().day.at("00:00").do(end_jopnik_event)
-
-def end_jopnik_event(): # окончание ивента
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    if jopnik.data['balance'] < 68:
-        jopnik.data['commission'] = 2
-    calculate_rewards(jopnik.data['event_start_balance'])
-    disable_zadobrit_command()
-    jopnik.data['event_active'] = False
-    jopnik.save_data()
-
-def calculate_rewards(initial_balance): # Топ 5 за ивент
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    top_list = jopnik.data['top_list']
-    rewards = []
-    for i, user in enumerate(top_list[:5]):
-        reward = int(initial_balance * (0.25 - i * 0.05))
-        rewards.append((user, reward))
-    save_rewards(rewards)
-
-def save_rewards(rewards): # save наград
-    with open(DATA_DIR + 'rewards.json', 'w') as f:
-        json.dump(rewards, f)
-
-def enable_zadobrit_command(): # функция для !задобрить
-    @bot.command(name='задобрить')
-    async def zadobrit(ctx):
-        jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-        if ctx.author.id in zadobrit_cooldown:
-            await ctx.send("Вы уже использовали команду '!задобрить' в этом часе.")
-            return
-        bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-        balance = bank.get_balance(ctx.author.id)
-        if balance < 3:
-            await ctx.send("У вас не хватает жрунов для использования команды '!задобрить'.")
-            return
-        bank.decrement_balance(ctx.author.id, 3)
-        reward = random.randint(0, 5)
-        bank.increment_balance(ctx.author.id, reward)
-        jopnik.data['top_list'].append(ctx.author.id)
-        jopnik.save_data()
-
-def disable_zadobrit_command(): # Для особо активных отключение команды !задобрить
-    @bot.command(name='задобрить')
-    async def zadobrit(ctx):
-        await ctx.send("Команда '!задобрить' неактивна.")
-
-def load_zadobrit_top():
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    return jopnik.data['top_list']
-
-def save_zadobrit_top(top_list): # топ Задобрителей
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    jopnik.data['top_list'] = top_list
-
-def get_commission():
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    return jopnik.data['commission']
-
-def update_commission():
-    jopnik = Jopnik('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json')
-    jopnik.data['commission'] = random.randint(1, 10)
-    jopnik.save_data()
-
-def check_requirements(user, role): 
-    bank = Bank(BALANCE_FILE)
-    balance = bank.get_balance(user.id)
-    asses = get_user_asses(user.id)
-    print(balance," - баланс 0 ", asses)
-    if role == 'Продвинутый':
-        print(balance," - баланс 1 ", asses)
-        if balance < 30 + get_commission():
-            print(balance," - баланс 2 ", asses)
-            return False
-    elif role == 'Опытный':
-        print(balance," - баланс 1 ", asses)
-        if balance < 70 + get_commission():
-            print(balance," - баланс 2 ", asses)
-            return False
-    return True
-
-def check_roles(): # проверка на наличие жопок
-    jopnik = Jopnik('top_list.json')
-    top_list = jopnik.data
-    for user in bot.get_all_members():
-        user_info = next((x for x in top_list if x.get('никнейм') == user.name), None)
-        if user_info is not None:
-            if user_info.get('жопки', 0) < 5 and 'Продвинутый' in [role.name for role in user.roles]:
-                role = discord.utils.get(user.guild.roles, name='Продвинутый')
-                user.remove_roles(role)
-            if user_info.get('жопки', 0) < 10 and 'Опытный' in [role.name for role in user.roles]:
-                role = discord.utils.get(user.guild.roles, name='Опытный')
-                user.remove_roles(role)
-
-def set_first_jrun_date(user): # дата получения первого жруна
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
-            first_jrun_dates = json.load(f)
-    except FileNotFoundError:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
-            json.dump({}, f)
-        first_jrun_dates = {}
-    now = datetime.datetime.now(datetime.timezone.utc)
-    first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
-        json.dump(first_jrun_dates, f)
-
-def give_jrun_for_all_members(): #Пополнения жрунов от роли
-    for member in bot.get_all_members():
-        if "Опытный" in [role.name for role in member.roles]:
-            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
-            account.give_jrun(member.id, 4)
-        elif "Продвинутый" in [role.name for role in member.roles]:
-            account = BankAccount('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json', member.id)
-            account.give_jrun(member.id, 2)
-
-def remove_roles_if_needed(user_id, new_asses_count): # удаление ролей при понижении жопок
-    user = bot.get_user(user_id)
-    if user:
-        if new_asses_count < 30:
-            role = discord.utils.get(user.guild.roles, name='Продвинутый')
-            if role in user.roles:
-                user.remove_roles(role)
-        if new_asses_count < 70:
-            role = discord.utils.get(user.guild.roles, name='Опытный')
-            if role in user.roles:
-                user.remove_roles(role)
-
-async def handle_buy_advanced_interaction(interaction):
-    if not check_requirements(interaction.user, 'Продвинутый'):
-        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
-        return
-async def handle_buy_experienced_interaction(interaction):
-    if not check_requirements(interaction.user, 'Опытный'):
-        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
-        return
-################################################################################################
-################################################################################################
+####### ПОЛУЧЕНИЕ ЖРУНОВ для АЛЛ ЮЗЕРС
 def give_jrun_for_message(user_id, guild_id, message):
     if user_id not in message_count:
         message_count[user_id] = 0
@@ -456,8 +284,23 @@ def give_jrun_for_presence(user):
                 first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
                 with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                     json.dump(first_jrun_dates, f)
+                    
+def set_first_jrun_date(user): # дата получения первого жруна
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
+            first_jrun_dates = json.load(f)
+    except FileNotFoundError:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+            json.dump({}, f)
+        first_jrun_dates = {}
+    now = datetime.datetime.now(datetime.timezone.utc)
+    first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+        json.dump(first_jrun_dates, f)
+
 ################################################################################################
 ################################################################################################
+###### Сброс файлов для получения жрунов
 def reset_message_count():
     global message_count
     message_count = {}
@@ -471,6 +314,7 @@ def reset_reaction_count():
         json.dump({}, f)
 
 ##############################################################################################
+### Разнорабочие функции ###
 def get_user_asses(user_id):
     try:
         with open(TOP_LIST_FILE, "r") as file:
@@ -493,6 +337,30 @@ def reset_balance_on_leave(user): # Очищение баланса при ли�
             json.dump(first_jrun_dates, f)
     except FileNotFoundError:
         pass
+
+def update_last_message_time(user_id): #Файл с последним сообщением
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'r+') as f:
+            last_messages = json.load(f)
+    except FileNotFoundError:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
+            json.dump({}, f)
+        last_messages = {}
+    except json.JSONDecodeError:
+        last_messages = {}
+    user_id_str = str(user_id)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    last_message_time = last_messages.get(user_id_str, {'last_message': None})['last_message']
+    if last_message_time is not None:
+        last_message_date = datetime.datetime.strptime(last_message_time, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+    else:
+        last_message_date = None
+    if not last_message_date or now - last_message_date > datetime.timedelta(days=1):
+        last_messages[user_id_str] = {'last_message': now.strftime('%Y-%m-%d %H:%M:%S.%f')}
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/last_messages.json', 'w') as f:
+            json.dump(last_messages, f)
+        return True
+    return False
 
 def load_top_list():
     try:
@@ -571,19 +439,16 @@ async def send_private_message(member, content):
         await ctx.send(f"Невозможно отправить личное сообщение пользователю {member.display_name}.")
 ################################################################################################
 
-schedule.every().day.at("00:00").do(reset_last_message_time)  # 0:00 по времени Сахалину
-schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)  # вызывать функцию каждый день в 00:00 получение жрунов
-schedule.every(1).day.at("00:00").do(check_roles)  # вызывать функцию каждый день в 00:00 чек на жопки
-#schedule.every().week.at("23:59").do(check_jopnik_balance)
+schedule.every().day.at("00:00").do(reset_last_message_time)
+schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)
 schedule.every().day.at("00:00").do(reset_message_count)
 schedule.every().day.at("00:00").do(reset_reaction_count)
-schedule.every().day.at("00:00").do(update_commission)
 
+################################################################################################
 #запуск Бота
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} успешно запущен")
-
 
 @bot.event #пришел юзер
 async def on_member_join(member):
@@ -615,16 +480,14 @@ async def on_message(message):
         message_count[user_id]["count"] = 0
     message_count[user_id]["last_message_time"] = current_time
     message_count[user_id]["count"] += 1
-#convert_to_member
-# Ошибка в написанни команды
-@bot.event
+
+@bot.event #отладчик ошибочных команд
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         response = random.choice(["Эта команда неактуальна"])
         await ctx.send(response)
 
-# Ответ на любое сообщение
-@bot.event 
+@bot.event #выдача Жруна за сообщение
 async def on_message(message):
     if message.author == bot.user:
         return
@@ -632,76 +495,16 @@ async def on_message(message):
         give_jrun_for_message(message.author.id, message.guild.id, message)
     await bot.process_commands(message)
 
-@bot.event
+@bot.event #Выдача жруна за реакцию
 async def on_reaction_add(reaction, user):
     if user == bot.user:
         return
     give_jrun_for_reaction(reaction, user)
 ############################################################################################################
 @bot.event # обработчик кнопок !для магазина и !для Жопника
-async def on_interaction(interaction):
-    if interaction.type == discord.InteractionType.component:
-        await handle_component_interaction(interaction)
 
-async def handle_component_interaction(interaction):
-    if interaction.data.get('custom_id') == 'zadobrit':
-        await handle_zadobrit_interaction(interaction)
-    elif interaction.data.get('custom_id') == 'shop':
-        await handle_shop_interaction(interaction)
-    elif interaction.data.get('custom_id') == 'buy_advanced':
-        await handle_buy_advanced_interaction(interaction)
-    elif interaction.data.get('custom_id') == 'buy_experienced':
-        await handle_buy_experienced_interaction(interaction)
 
-async def zadobrit(interaction):
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    balance = bank.get_balance(interaction.user.id)
-    if balance < 3:
-        await interaction.response.send_message('У вас не хватает жрунов для задобрения жопника!')
-        return
-    bank.decrement_balance(interaction.user.id, 3)
-    reward = random.randint(0, 5)
-    bank.increment_balance(interaction.user.id, reward)
-    await interaction.response.send_message(f'Вы задобрили жопника и получили {reward} жрунов!')
 
-async def handle_shop_interaction(interaction):
-    commission = get_commission()
-    embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
-    embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
-    embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
-## ID покупка
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
-    view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
-
-    await interaction.response.edit_message(embed=embed, view=view)
-
-async def handle_buy_advanced_interaction(interaction):
-    if not check_requirements(interaction.user, 'Продвинутый'):
-        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
-        return
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    balance = bank.get_balance(interaction.user.id)
-    bank.decrement_balance(interaction.user.id, 30 + get_commission())
-    role = discord.utils.get(interaction.guild.roles, name='Продвинутый')
-    await interaction.user.add_roles(role)
-    await interaction.response.send_message('Вы успешно купили роль Продвинутый!')
-
-async def handle_buy_experienced_interaction(interaction):
-    if not check_requirements(interaction.user, 'Опытный'):
-        await interaction.response.send_message('У вас не хватает жрунов или жопок для покупки этой роли!')
-        return
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    balance = bank.get_balance(interaction.user.id)
-    bank.decrement_balance(interaction.user.id, 70 + get_commission())
-    role = discord.utils.get(interaction.guild.roles, name='Опытный')
-    await interaction.user.add_roles(role)
-    await interaction.response.send_message('Вы успешно купили роль Опытный!')
-
-async def on_interaction(interaction):
-    if interaction.type == discord.InteractionType.component:
-        if interaction.data.get('custom_id') == 'shop':
-            await handle_shop_interaction(interaction)
 ############################################################################################################
 
 @bot.event
@@ -789,7 +592,6 @@ async def стрим(ctx, *, comment: str = ''):
         await channel.send(message)
     else:
         await ctx.send("Канал не найден. Пожалуйста, убедитесь, что указан правильный ID канала.")
-
 
 # жопки
 @bot.command(name='НоваяЖопка')
@@ -926,40 +728,17 @@ async def help_jrun(ctx):
 `!Дота` - стоимость за которую Чудо поиграет в доту
 `!Танки` - стоимость игры в танки
 
-*Жопки**
+**Жопки**
 `!Жопка` - Топ владельцев жопок
 
 **Пнуть пользователя**
 `!пнуть <@user>` - пинает пользователя в ЛС
-
-
 
 **Жопник**
 `!Жопник` - открывает функционал Жопника
 
 **Магазин**
 `!магаз` - открыть магазин для покупки ролей и других товаров
-
-**Помощь по Жопнику**
-`!help_jopnik` - получить информацию о Жопнике и его командах
-
-"""
-    await ctx.send(guide)
-
-# HELP команды Жопника
-@bot.command()
-async def help_jopnik(ctx):
-    guide = """
-**Команды для работы с Жопником**
-
-**Открыть меню Жопника**
-`!жопник` - открыть меню Жопника и задобрить его во время ивента
-
-**Задобрить Жопника**
-`!задобрить` - задобрить Жопника во время ивента
-
-**Получить информацию о Жопнике**
-`!help_jopnik` - получить информацию о Жопнике и его командах
 
 """
     await ctx.send(guide)
@@ -1048,43 +827,43 @@ async def balance(ctx):
     balance = bank.get_balance(ctx.author.id)
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
+############# Магазин ###################
+@bot.command(name="магаз")
+async def shop(ctx):
+    print("Начала")
+    embed = discord.Embed(title="Магазин", description="Выберите товар, который хотите купить")
+    embed.add_field(name="Роль 1", value="100 Жрунов", inline=False)
+    embed.add_field(name="Роль 2", value="200 Жрунов", inline=False)
+    embed.add_field(name="Роль 3", value="300 Жрунов", inline=False)
+    # Добавьте здесь свои товары
+
+    view = View()
+    button1 = Button(label="Роль 1", style=discord.ButtonStyle.green, custom_id="role1")
+    button2 = Button(label="Роль 2", style=discord.ButtonStyle.green, custom_id="role2")
+    button3 = Button(label="Роль 3", style=discord.ButtonStyle.green, custom_id="role3")
+    # Добавьте здесь свои кнопки
+
+    button1.callback = shop.button_callback
+    button2.callback = shop.button_callback
+    button3.callback = shop.button_callback
+
+    view.add_item(button1)
+    view.add_item(button2)
+    view.add_item(button3)
+
+    await ctx.send(embed=embed, view=view)
+
+
+
 ## Команда профиль - выводит стату пользователя (Жруны / жопки)
 
 
-@bot.command(name='магаз')
-async def shop(ctx):
-    commission = get_commission()
-    embed = discord.Embed(title='Магазин Жопника', description='Здесь вы можете купить роли и другие товары')
-    embed.add_field(name='Продвинутый', value=f'30 жрунов + {commission} жрунов', inline=False)
-    embed.add_field(name='Опытный', value=f'70 жрунов + {commission} жрунов', inline=False)
-##Покупка через ID (user) --
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label='Купить Продвинутый', custom_id='buy_advanced'))
-    view.add_item(discord.ui.Button(label='Купить Опытный', custom_id='buy_experienced'))
-
-    await ctx.send(embed=embed, view=view)
-
-@bot.command(name='жопник')
-async def jopnik(ctx):
-    jopnik = Jopnik('jopnik.json')
-    embed = discord.Embed(title='Магнат Комиссионович Жопник, приветствует тебя!')
-    embed.add_field(name='Баланс Жопника', value=f'{jopnik.data["balance"]} жрунов', inline=False)
-    embed.add_field(name='Дневная комиссия', value=f'{jopnik.data["commission"]} жрунов', inline=False)
-    embed.add_field(name='Активность ивента', value='Да' if jopnik.data['event_active'] else 'Нет', inline=False)
-
-    view = discord.ui.View()
-    if jopnik.data['event_active']:
-        view.add_item(discord.ui.Button(label='Задобрить', custom_id='zadobrit'))
-    view.add_item(discord.ui.Button(label='Магазин', custom_id='shop'))
-
-    await ctx.send(embed=embed, view=view)
 
 
 #Добавление новых команд для взаимодействия со счетом в процессе!
 exit_while = 0
 while exit_while == 0:
     schedule.run_pending()
-    check_jopnik_balance()
     time.sleep(1)
     exit_while+=1
 
