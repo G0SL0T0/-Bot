@@ -2,6 +2,7 @@
 import discord
 import asyncio
 from discord.ext import commands #только библиотека Discord.py
+from discord.ui import View, Button
 import pytz
 from datetime import datetime, timedelta
 import random #рандом
@@ -31,7 +32,9 @@ presence_data = {} # похождения юзеров на сервере (жр
 reaction_channel_id = 1179745995345645609  # ID канала
 DATA_DIR = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/'
 BALANCE_FILE = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json'
-
+Rili1=1292412725632303125#1291219768032104460 
+Rili2=1292412752060481606#1292393218175930379
+Rili3=1292412753360715798#1282958916657086508
 def reset_message_count():
     message_count.clear()
 
@@ -140,43 +143,6 @@ class BankAccount:
         print("Трабл гив жрун ", {user_id})
         self.bank.increment_balance(user_id, amount)
         self.bank.save_json()
-
-class Shop:
-    def __init__(self, shop_items):
-        self.shop_items = shop_items
-        print ("Насяла __init__")
-    
-
-    async def button_callback(self, interaction: discord.Interaction):
-        print("насяла класс 1")
-        if interaction.data.custom_id == "role1":
-            item = "Роль 1"
-            price = 100
-        elif interaction.data.custom_id == "role2":
-            item = "Роль 2"
-            price = 200
-        elif interaction.data.custom_id == "role3":
-            item = "Роль 3"
-            price = 300
-        # Добавьте здесь свои кнопки
-
-        user_id = interaction.user.id
-        bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-        balance = bank.get_balance(user_id)
-        print("перевирка баласа")
-        if balance >= price:
-            bank.decrement_balance(user_id, price)
-            await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
-        else:
-            await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
-
-
-shop = Shop({
-    "Роль 1": 100,
-    "Роль 2": 200,
-    "Роль 3": 300,
-    # Добавьте здесь свои товары
-})
 
 # Функции
 def has_moderator_role(user): # роли модеров
@@ -828,6 +794,7 @@ async def balance(ctx):
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
 ############# Магазин ###################
+
 @bot.command(name="магаз")
 async def shop(ctx):
     print("Начала")
@@ -843,9 +810,37 @@ async def shop(ctx):
     button3 = Button(label="Роль 3", style=discord.ButtonStyle.green, custom_id="role3")
     # Добавьте здесь свои кнопки
 
-    button1.callback = shop.button_callback
-    button2.callback = shop.button_callback
-    button3.callback = shop.button_callback
+    async def button_callback(interaction: discord.Interaction):
+        print("насяла класс 1")
+        if interaction.data.get("custom_id") == "role1":
+            item = "Роль 1"
+            price = 100
+            role_id = Rili1  # ID роли 1
+        elif interaction.data.get("custom_id") == "role2":
+            item = "Роль 2"
+            price = 200
+            role_id = Rili2  # ID роли 2
+        elif interaction.data.get("custom_id") == "role3":
+            item = "Роль 3"
+            price = 300
+            role_id = Rili3  # ID роли 3
+        # Добавьте здесь свои кнопки
+
+        user_id = interaction.user.id
+        bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+        balance = bank.get_balance(user_id)
+        print("перевирка баласа")
+        if balance >= price:
+            bank.decrement_balance(user_id, price)
+            role = interaction.guild.get_role(role_id)
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
+        else:
+            await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
+
+    button1.callback = button_callback
+    button2.callback = button_callback
+    button3.callback = button_callback
 
     view.add_item(button1)
     view.add_item(button2)
@@ -853,8 +848,119 @@ async def shop(ctx):
 
     await ctx.send(embed=embed, view=view)
 
+###########################################################
+#######################  ЖОПНИК ###########################
+
+@bot.command(name="жопник")
+async def jopnik(ctx):
+    print("Начала")
+    embed = discord.Embed(title="Магнат Комиссорионович Жопник, приветствует тебя!", description="Чего изволите?")
+    embed.add_field(name="Магазин", value="Предлагаемые товары", inline=False)
+    embed.add_field(name="Репутация", value="Отношение Жопника к тебе", inline=False)
+    # Добавьте здесь свои действия
+
+    view = View()
+    button1 = Button(label="Магазин", style=discord.ButtonStyle.green, custom_id="shop")
+    button2 = Button(label="Репутация", style=discord.ButtonStyle.green, custom_id="reputation")
+    # Добавьте здесь свои кнопки
+
+    async def button_callback(interaction: discord.Interaction):
+        print("насяла класс 1")
+        if interaction.data.get("custom_id") == "shop":
+            shop_embed = discord.Embed(title="Магазин", description="Выберите товар, который хотите купить")
+            shop_embed.add_field(name="Начальный", value="1 Жрун", inline=False)
+            shop_embed.add_field(name="Роль 2", value="200 Жрунов", inline=False)
+            shop_embed.add_field(name="Роль 3", value="300 Жрунов", inline=False)
+            # Добавьте здесь свои товары
+
+            shop_view = View()
+            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+            button2 = Button(label="Начальный", style=discord.ButtonStyle.green, custom_id="role1")
+            button3 = Button(label="Роль 2", style=discord.ButtonStyle.green, custom_id="role2")
+            button4 = Button(label="Роль 3", style=discord.ButtonStyle.green, custom_id="role3")
+            # Добавьте здесь свои кнопки
+
+            async def shop_callback(interaction: discord.Interaction):
+                if interaction.data.get("custom_id") == "back":
+                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                elif interaction.data.get("custom_id") == "role1":
+                    item = "Начальный"
+                    price = 1
+                    role_id = Rili1  # ID роли 1
+                elif interaction.data.get("custom_id") == "role2":
+                    item = "Роль 2"
+                    price = 200
+                    role_id = Rili2  # ID роли 2
+                elif interaction.data.get("custom_id") == "role3":
+                    item = "Роль 3"
+                    price = 300
+                    role_id = Rili3  # ID роли 3
+                # Добавьте здесь свои кнопки
+
+                user_id = interaction.user.id
+                bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+                balance = bank.get_balance(user_id)
+                print("перевирка баласа")
+                if balance >= price:
+                    bank.decrement_balance(user_id, price)
+                    role = interaction.guild.get_role(role_id)
+                    await interaction.user.add_roles(role)
+                    await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
+                else:
+                    await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
+
+            button1.callback = shop_callback
+            button2.callback = shop_callback
+            button3.callback = shop_callback
+            button4.callback = shop_callback
+
+            shop_view.add_item(button1)
+            shop_view.add_item(button2)
+            shop_view.add_item(button3)
+            shop_view.add_item(button4)
+
+            await interaction.response.edit_message(embed=shop_embed, view=shop_view)
+        elif interaction.data.get("custom_id") == "reputation":
+            user_id = interaction.user.id
+            try:
+                with open('rep.json', 'r') as f:
+                    reputation_data = json.load(f)
+            except FileNotFoundError:
+                with open('rep.json', 'w') as f:
+                    json.dump({}, f)
+                reputation_data = {}
+            reputation = reputation_data.get(str(user_id), 0)
+            embed = discord.Embed(title="Репутация", description=f"Ваша репутация: {reputation}")
+            view = View()
+            button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
+            button2 = Button(label="{No Name}", style=discord.ButtonStyle.red, custom_id="delete")
+            async def reputation_callback(interaction: discord.Interaction):
+                if interaction.data.get("custom_id") == "back":
+                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                elif interaction.data.get("custom_id") == "delete":
+                    await interaction.response.defer()
+                    await interaction.delete_original_response()
+            button1.callback = reputation_callback
+            button2.callback = reputation_callback
+            view.add_item(button1)
+            view.add_item(button2)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+    button1.callback = button_callback
+    button2.callback = button_callback
+
+    view.add_item(button1)
+    view.add_item(button2)
+
+    jopnik_embed = embed
+    jopnik_view = view
+
+    await ctx.send(embed=embed, view=view)
 
 
+
+
+###############################################################
 ## Команда профиль - выводит стату пользователя (Жруны / жопки)
 
 
