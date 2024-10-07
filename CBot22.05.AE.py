@@ -22,7 +22,9 @@ random_responses=[
     ]
 # бот INTENTS 
 bot = commands.Bot(intents=discord.Intents.all(), case_insensitive=True, command_prefix=prefix)
-
+price_rad1=random.randint(1, 10)
+price_rad2=random.randint(10, 20)
+price_rad3=random.randint(15, 25)
 ticket_data_file = "C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/tickets.json"
 rewards = {
     100: {"Tier 4": 0.5, "Tier 5": 0.5}, # Лотерейка
@@ -32,9 +34,9 @@ presence_data = {} # похождения юзеров на сервере (жр
 reaction_channel_id = 1179745995345645609  # ID канала
 DATA_DIR = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/'
 BALANCE_FILE = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json'
-Rili1=1292412725632303125#1291219768032104460 
-Rili2=1292412752060481606#1292393218175930379
-Rili3=1292412753360715798#1282958916657086508
+Rili1=1291219768032104460#1292412725632303125# 
+Rili2=1292393218175930379#1292412752060481606#
+Rili3=1282958916657086508#1292412753360715798#
 def reset_message_count():
     message_count.clear()
 
@@ -153,21 +155,7 @@ def has_moderator_role(user): # роли модеров
 
 ################################################################################################
 ################################################################################################
-####### Магазин 2.0  МАГАЗИН!
-
-
-async def menu_callback(self, interaction: discord.Interaction):
-    print("Начала функций")
-    item = interaction.data.values[0]
-    price = self.shop_items[item]
-    user_id = interaction.user.id
-    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
-    balance = bank.get_balance(user_id)
-    if balance >= price:
-        bank.decrement_balance(user_id, price)
-        await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
-    else:
-        await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
+####### Комиссия 
 
 
 ################################################################################################
@@ -409,6 +397,7 @@ schedule.every().day.at("00:00").do(reset_last_message_time)
 schedule.every(1).day.at("00:00").do(give_jrun_for_all_members)
 schedule.every().day.at("00:00").do(reset_message_count)
 schedule.every().day.at("00:00").do(reset_reaction_count)
+
 
 ################################################################################################
 #запуск Бота
@@ -794,7 +783,7 @@ async def balance(ctx):
     await ctx.send(f'Ваш баланс: {balance} Жрунов')
 
 ############# Магазин ###################
-
+'''
 @bot.command(name="магаз")
 async def shop(ctx):
     print("Начала")
@@ -847,104 +836,246 @@ async def shop(ctx):
     view.add_item(button3)
 
     await ctx.send(embed=embed, view=view)
-
+'''
 ###########################################################
 #######################  ЖОПНИК ###########################
 
 @bot.command(name="жопник")
 async def jopnik(ctx):
-    print("Начала")
-    embed = discord.Embed(title="Магнат Комиссорионович Жопник, приветствует тебя!", description="Чего изволите?")
+    print("начало функций")
+    
+    file_path = 'C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json'
+    
+    if not os.path.exists(file_path):
+        print("Файл не нашелся")
+        with open(file_path, 'w') as f:
+            json.dump({'balance': 0, 'commission': 0}, f)
+            print("файл создаю и уже загрузил")
+        jopnik_data = {'balance': 0, 'commission': 0}
+    else:
+        try:
+            print("чтение файлов")
+            with open(file_path, 'r') as f:
+                print("файл открылся, загружаю в память.  . .")
+                jopnik_data = json.load(f)
+                print("Память загружена")
+        except json.JSONDecodeError:
+            print("Файл содержит невалидный JSON-код")
+            with open(file_path, 'w') as f:
+                json.dump({'balance': 0, 'commission': 0}, f)
+                print("файл создаю и уже загрузил")
+            jopnik_data = {'balance': 0, 'commission': 0}
+    # #
+    print("Меню жопника")
+    embed = discord.Embed(title="Магнат Комиссарионович Жопник, приветствует тебя!", description="Чего изволите?")
+    embed.add_field(name="Баланс Жопника", value=f"{jopnik_data['balance']} Жрунов", inline=False)
     embed.add_field(name="Магазин", value="Предлагаемые товары", inline=False)
     embed.add_field(name="Репутация", value="Отношение Жопника к тебе", inline=False)
-    # Добавьте здесь свои действия
-
+    embed.add_field(name="Комиссия", value=f"Сегодняшняя комиссия: ~{jopnik_data['commission']}%", inline=False)
+    # #
+    print("кнопки жопника")
     view = View()
     button1 = Button(label="Магазин", style=discord.ButtonStyle.green, custom_id="shop")
     button2 = Button(label="Репутация", style=discord.ButtonStyle.green, custom_id="reputation")
-    # Добавьте здесь свои кнопки
-
+############
     async def button_callback(interaction: discord.Interaction):
-        print("насяла класс 1")
         if interaction.data.get("custom_id") == "shop":
-            shop_embed = discord.Embed(title="Магазин", description="Выберите товар, который хотите купить")
-            shop_embed.add_field(name="Начальный", value="1 Жрун", inline=False)
-            shop_embed.add_field(name="Роль 2", value="200 Жрунов", inline=False)
-            shop_embed.add_field(name="Роль 3", value="300 Жрунов", inline=False)
-            # Добавьте здесь свои товары
+            await shop_callback(interaction)
+        elif interaction.data.get("custom_id") == "reputation":
+            await reputation_callback(interaction)
 
-            shop_view = View()
-            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-            button2 = Button(label="Начальный", style=discord.ButtonStyle.green, custom_id="role1")
-            button3 = Button(label="Роль 2", style=discord.ButtonStyle.green, custom_id="role2")
-            button4 = Button(label="Роль 3", style=discord.ButtonStyle.green, custom_id="role3")
-            # Добавьте здесь свои кнопки
 
-            async def shop_callback(interaction: discord.Interaction):
-                if interaction.data.get("custom_id") == "back":
-                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-                elif interaction.data.get("custom_id") == "role1":
+############
+    print("шоп калбек 1")
+    async def shop_callback(interaction: discord.Interaction):
+        print("Отправка сообщения калбек 1")
+        shop_embed = discord.Embed(title="Магазин", description="Выберите товар, который хотите купить")
+        commission = jopnik_data['commission']
+        price1 = 1 + price_rad1 + (1 * commission / 100)
+        price2 = 100 + price_rad2 + (100 * commission / 100) ### ЦЕНЫ товаров
+        price3 = 200 + price_rad3 + (200 * commission / 100)
+        shop_embed.add_field(name="Начальный", value=f"{price1} Жрунов", inline=False)
+        shop_embed.add_field(name="Опытный", value=f"{price2} Жрунов", inline=False)
+        shop_embed.add_field(name="Продвинутый", value=f"{price3} Жрунов", inline=False)
+
+        shop_view = View()
+        button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+        button2 = Button(label="Начальный", style=discord.ButtonStyle.green, custom_id="role1")
+        button3 = Button(label="Опытный", style=discord.ButtonStyle.green, custom_id="role2")
+        button4 = Button(label="Продвинутый", style=discord.ButtonStyle.green, custom_id="role3")
+#############
+        print ("Шоп калбек 2")
+        async def shop_callback2(interaction: discord.Interaction):
+            if interaction.data.get("custom_id") == "back":
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            elif interaction.data.get("custom_id") in ["role1", "role2", "role3"]:
+                if interaction.data.get("custom_id") == "role1":
                     item = "Начальный"
-                    price = 1
+                    price = price1
                     role_id = Rili1  # ID роли 1
                 elif interaction.data.get("custom_id") == "role2":
-                    item = "Роль 2"
-                    price = 200
+                    item = "Опытный"
+                    price = price2
                     role_id = Rili2  # ID роли 2
                 elif interaction.data.get("custom_id") == "role3":
-                    item = "Роль 3"
-                    price = 300
+                    item = "Продвинутый"
+                    price = price3
                     role_id = Rili3  # ID роли 3
-                # Добавьте здесь свои кнопки
 
                 user_id = interaction.user.id
                 bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
                 balance = bank.get_balance(user_id)
                 print("перевирка баласа")
-                if balance >= price:
-                    bank.decrement_balance(user_id, price)
-                    role = interaction.guild.get_role(role_id)
-                    await interaction.user.add_roles(role)
-                    await interaction.response.send_message(f"Вы успешно купили {item} за {price} Жрунов")
-                else:
-                    await interaction.response.send_message("У вас недостаточно Жрунов для покупки этого товара")
+                commission = jopnik_data['commission']
+                price_with_commission = price + (price * commission / 100)
+                role = interaction.guild.get_role(role_id)
 
-            button1.callback = shop_callback
-            button2.callback = shop_callback
-            button3.callback = shop_callback
-            button4.callback = shop_callback
+                user_roles = [r.id for r in interaction.user.roles]
+                if role_id in user_roles:
+                    embed = discord.Embed(title="Ошибка", description="У вас уже есть эта роль.")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                elif balance >= price_with_commission:
+                    bank.decrement_balance(user_id, price_with_commission)
+                    if role_id in [Rili2, Rili3]:
+                        await interaction.user.remove_roles(interaction.guild.get_role(Rili1))
+                        if role_id == Rili3:
+                            await interaction.user.remove_roles(interaction.guild.get_role(Rili2))
+                    await interaction.user.add_roles(role)
+                    jopnik_data['balance'] += price * commission / 100
+                    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
+                        json.dump(jopnik_data, f)
+                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                else:
+                    embed = discord.Embed(title="Недостаточно Жрунов", description="Вам не хватает Жрунов для покупки этого товара. Возвращайтесь когда накопите.")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+
+            elif Rili1 in user_roles and role_id == Rili2:
+                embed = discord.Embed(title="Вы можете купить роль выше рангом.")
+                view = View()
+                button1 = Button(label="Купить", style=discord.ButtonStyle.green, custom_id="buy")
+                async def buy_callback(interaction: discord.Interaction):
+                    bank.decrement_balance(user_id, price_with_commission)
+                    await interaction.user.add_roles(role)
+                    jopnik_data['balance'] += price * commission / 100
+                    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
+                        json.dump(jopnik_data, f)
+                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+
+            elif Rili2 in user_roles and role_id == Rili3:
+                embed = discord.Embed(title="Вы можете купить роль выше рангом.")
+                view = View()
+                button1 = Button(label="Купить", style=discord.ButtonStyle.green, custom_id="buy")
+                async def buy_callback(interaction: discord.Interaction):
+                    bank.decrement_balance(user_id, price_with_commission)
+                    await interaction.user.add_roles(role)
+                    jopnik_data['balance'] += price * commission / 100
+                    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
+                        json.dump(jopnik_data, f)
+                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                button1.callback = buy_callback
+                view.add_item(button1)
+                await interaction.response.edit_message(embed=embed, view=view)
+            elif Rili3 in user_roles and role_id in [Rili1, Rili2]:
+                embed = discord.Embed(title="Ошибка", description="Вы не можете купить роль ниже рангом, если у вас уже есть роль выше рангом.")
+                view = View()
+                button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                async def back_callback(interaction: discord.Interaction):
+                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                button1.callback = back_callback
+                view.add_item(button1)
+                await interaction.response.edit_message(embed=embed, view=view)
+
+            view = View()
+            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+            async def back_callback(interaction: discord.Interaction):
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            button1.callback = back_callback
+            view.add_item(button1)
+            shop_view.add_item(button1)
+
+            view = View()
+            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+            async def back_callback(interaction: discord.Interaction):
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            button1.callback = back_callback
+            shop_view.add_item(button1)
+                
+            button2.callback = shop_callback2
+            button3.callback = shop_callback2
+            button4.callback = shop_callback2
 
             shop_view.add_item(button1)
             shop_view.add_item(button2)
             shop_view.add_item(button3)
             shop_view.add_item(button4)
 
+            jopnik_embed = shop_embed
+            jopnik_view = shop_view
             await interaction.response.edit_message(embed=shop_embed, view=shop_view)
-        elif interaction.data.get("custom_id") == "reputation":
-            user_id = interaction.user.id
-            try:
-                with open('rep.json', 'r') as f:
-                    reputation_data = json.load(f)
-            except FileNotFoundError:
-                with open('rep.json', 'w') as f:
-                    json.dump({}, f)
-                reputation_data = {}
-            reputation = reputation_data.get(str(user_id), 0)
-            embed = discord.Embed(title="Репутация", description=f"Ваша репутация: {reputation}")
-            view = View()
-            button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
-            button2 = Button(label="{No Name}", style=discord.ButtonStyle.red, custom_id="delete")
-            async def reputation_callback(interaction: discord.Interaction):
-                if interaction.data.get("custom_id") == "back":
-                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-                elif interaction.data.get("custom_id") == "delete":
-                    await interaction.response.defer()
-                    await interaction.delete_original_response()
-            button1.callback = reputation_callback
-            button2.callback = reputation_callback
-            view.add_item(button1)
-            view.add_item(button2)
-            await interaction.response.edit_message(embed=embed, view=view)
+
+############
+    async def reputation_callback(interaction: discord.Interaction):
+        user_id = interaction.user.id
+        try:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rep.json', 'r') as f:
+                reputation_data = json.load(f)
+        except FileNotFoundError:
+            with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/rep.json', 'w') as f:
+                json.dump({}, f)
+            reputation_data = {}
+        reputation = reputation_data.get(str(user_id), 0)
+        embed = discord.Embed(title="Репутация", description=f"Ваша репутация: {reputation}")
+        view = View()
+        button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
+        button2 = Button(label="{No Name}", style=discord.ButtonStyle.red, custom_id="delete")
+        async def reputation_callback2(interaction: discord.Interaction):
+            if interaction.data.get("custom_id") == "back":
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            elif interaction.data.get("custom_id") == "delete":
+                await interaction.response.defer()
+                await interaction.delete_original_response()
+        button1.callback = reputation_callback2
+        button2.callback = reputation_callback2
+        view.add_item(button1)
+        view.add_item(button2)
+        jopnik_embed = embed
+        jopnik_view = view
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
 
     button1.callback = button_callback
     button2.callback = button_callback
@@ -957,18 +1088,161 @@ async def jopnik(ctx):
 
     await ctx.send(embed=embed, view=view)
 
+def update_commission():
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'r') as f:
+            jopnik_data = json.load(f)
+    except FileNotFoundError:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
+            json.dump({'balance': 0, 'commission': 0}, f)
+        jopnik_data = {'balance': 0, 'commission': 0}
+
+    jopnik_data['commission'] = random.randint(3, 27)
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
+        json.dump(jopnik_data, f)
+
+schedule.every().day.at("00:00").do(update_commission)
+
+
+###
+'''
+@bot.command(name="жопник")
+async def jopnik(ctx):
+    embed = discord.Embed(title="Магнат Комиссорионович Жопник, приветствует тебя!", description="Чего изволите?")
+    embed.add_field(name="Магазин", value="Предлагаемые товары", inline=False)
+    embed.add_field(name="Репутация", value="Отношение Жопника к тебе", inline=False)
+    # Добавьте здесь свои действия
+
+    view = View()
+    button1 = Button(label="Магазин", style=discord.ButtonStyle.green, custom_id="shop")
+    button2 = Button(label="Репутация", style=discord.ButtonStyle.green, custom_id="reputation")
+    # Добавьте здесь свои кнопки
+
+    async def button_callback(interaction: discord.Interaction):
+        if interaction.data.get("custom_id") == "shop":
+            await shop_callback(interaction)
+        elif interaction.data.get("custom_id") == "reputation":
+            await reputation_callback(interaction)
+
+    async def shop_callback(interaction: discord.Interaction):
+        shop_embed = discord.Embed(title="Магазин", description="Выберите товар, который хотите купить")
+        shop_embed.add_field(name="Начальный", value="1 Жрун", inline=False)
+        shop_embed.add_field(name="Роль 2", value="200 Жрунов", inline=False)
+        shop_embed.add_field(name="Роль 3", value="300 Жрунов", inline=False)
+        # Добавьте здесь свои товары
+
+        shop_view = View()
+        button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+        button2 = Button(label="Начальный", style=discord.ButtonStyle.green, custom_id="role1")
+        button3 = Button(label="Роль 2", style=discord.ButtonStyle.green, custom_id="role2")
+        button4 = Button(label="Роль 3", style=discord.ButtonStyle.green, custom_id="role3")
+        # Добавьте здесь свои кнопки
+
+        async def shop_callback2(interaction: discord.Interaction):
+            if interaction.data.get("custom_id") == "back":
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            elif interaction.data.get("custom_id") in ["role1", "role2", "role3"]:
+                if interaction.data.get("custom_id") == "role1":
+                    item = "Роль 1"
+                    price = 100
+                    role_id = Rili1  # ID роли 1
+                elif interaction.data.get("custom_id") == "role2":
+                    item = "Роль 2"
+                    price = 200
+                    role_id = Rili2  # ID роли 2
+                elif interaction.data.get("custom_id") == "role3":
+                    item = "Роль 3"
+                    price = 300
+                    role_id = Rili3  # ID роли 3
+
+                user_id = interaction.user.id
+                bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+                balance = bank.get_balance(user_id)
+                print("перевирка баласа")
+                if balance >= price:
+                    bank.decrement_balance(user_id, price)
+                    role = interaction.guild.get_role(role_id)
+                    await interaction.user.add_roles(role)
+                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price} Жрунов")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                else:
+                    embed = discord.Embed(title="Недостаточно Жрунов", description="Вам не хватает Жрунов для покупки этого товара. Возвращайтесь когда накопите.")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
+                    async def back_callback(interaction: discord.Interaction):
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+
+        button1.callback = shop_callback2
+        button2.callback = shop_callback2
+        button3.callback = shop_callback2
+        button4.callback = shop_callback2
+
+        shop_view.add_item(button1)
+        shop_view.add_item(button2)
+        shop_view.add_item(button3)
+        shop_view.add_item(button4)
+
+        await interaction.response.edit_message(embed=shop_embed, view=shop_view)
+
+    async def reputation_callback(interaction: discord.Interaction):
+        user_id = interaction.user.id
+        try:
+            with open('rep.json', 'r') as f:
+                reputation_data = json.load(f)
+        except FileNotFoundError:
+            with open('rep.json', 'w') as f:
+                json.dump({}, f)
+            reputation_data = {}
+        reputation = reputation_data.get(str(user_id), 0)
+        embed = discord.Embed(title="Репутация", description=f"Ваша репутация: {reputation}")
+        view = View()
+        button1 = Button(label="Назад", style=discord.ButtonStyle.green, custom_id="back")
+        button2 = Button(label="{No Name}", style=discord.ButtonStyle.red, custom_id="delete")
+        async def reputation_callback2(interaction: discord.Interaction):
+            if interaction.data.get("custom_id") == "back":
+                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+            elif interaction.data.get("custom_id") == "delete":
+                await interaction.response.defer()
+                await interaction.delete_original_response()
+        button1.callback = reputation_callback2
+        button2.callback = reputation_callback2
+        view.add_item(button1)
+        view.add_item(button2)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    button1.callback = button_callback
+    button2.callback = button_callback
+
+    view.add_item(button1)
+    view.add_item(button2)
+
+    jopnik_embed = embed
+    jopnik_view = view
+
+    await ctx.send(embed=embed, view=view)
+'''
+###########
+
+
 
 
 
 ###############################################################
 ## Команда профиль - выводит стату пользователя (Жруны / жопки)
 
-
-
-
 #Добавление новых команд для взаимодействия со счетом в процессе!
 exit_while = 0
 while exit_while == 0:
+    
     schedule.run_pending()
     time.sleep(1)
     exit_while+=1
