@@ -866,14 +866,12 @@ async def jopnik(ctx):
                 print("файл создаю и уже загрузил")
             jopnik_data = {'balance': 0, 'commission': 0}
     # #
-    print("Меню жопника")
     embed = discord.Embed(title="Магнат Комиссарионович Жопник, приветствует тебя!", description="Чего изволите?")
     embed.add_field(name="Баланс Жопника", value=f"{jopnik_data['balance']} Жрунов", inline=False)
     embed.add_field(name="Магазин", value="Предлагаемые товары", inline=False)
     embed.add_field(name="Репутация", value="Отношение Жопника к тебе", inline=False)
     embed.add_field(name="Комиссия", value=f"Сегодняшняя комиссия: ~{jopnik_data['commission']}%", inline=False)
     # #
-    print("кнопки жопника")
     view = View()
     button1 = Button(label="Магазин", style=discord.ButtonStyle.green, custom_id="shop")
     button2 = Button(label="Репутация", style=discord.ButtonStyle.green, custom_id="reputation")
@@ -899,10 +897,14 @@ async def jopnik(ctx):
         shop_embed.add_field(name="Продвинутый", value=f"{price3} Жрунов", inline=False)
 
         shop_view = View()
-        button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+        button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="shopback")
         button2 = Button(label="Начальный", style=discord.ButtonStyle.green, custom_id="role1")
         button3 = Button(label="Опытный", style=discord.ButtonStyle.green, custom_id="role2")
         button4 = Button(label="Продвинутый", style=discord.ButtonStyle.green, custom_id="role3")
+        async def back_callback(interaction: discord.Interaction):
+            print("Кнопка 'назад' нажата")
+            await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+        button1.callback = back_callback
 #############
         print ("Шоп калбек 2")
         async def shop_callback2(interaction: discord.Interaction):
@@ -934,26 +936,57 @@ async def jopnik(ctx):
                 if role_id in user_roles:
                     embed = discord.Embed(title="Ошибка", description="У вас уже есть эта роль.")
                     view = View()
-                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="roleback")
                     async def back_callback(interaction: discord.Interaction):
+                        print("Кнопка 'роль лишняя' нажата")
+                        print("jopnik_embed:", jopnik_embed)
+                        print("jopnik_view:", jopnik_view)
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                elif role_id == Rili1 and (Rili2 in user_roles or Rili3 in user_roles):
+                    embed = discord.Embed(title="Ошибка", description="Вы не можете купить роль ниже рангом, если у вас уже есть роль выше рангом.")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="roleback")
+                    async def back_callback(interaction: discord.Interaction):
+                        print("Кнопка 'роль лишняя' нажата")
+                        print("jopnik_embed:", jopnik_embed)
+                        print("jopnik_view:", jopnik_view)
+                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+                    button1.callback = back_callback
+                    view.add_item(button1)
+                    await interaction.response.edit_message(embed=embed, view=view)
+                elif role_id == Rili2 and (Rili3 in user_roles):
+                    embed = discord.Embed(title="Ошибка", description="Вы не можете купить роль ниже рангом, если у вас уже есть роль выше рангом.")
+                    view = View()
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="roleback")
+                    async def back_callback(interaction: discord.Interaction):
+                        print("Кнопка 'роль лишняя' нажата")
+                        print("jopnik_embed:", jopnik_embed)
+                        print("jopnik_view:", jopnik_view)
                         await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
                     button1.callback = back_callback
                     view.add_item(button1)
                     await interaction.response.edit_message(embed=embed, view=view)
                 elif balance >= price_with_commission:
                     bank.decrement_balance(user_id, price_with_commission)
-                    if role_id in [Rili2, Rili3]:
+                    if role_id == Rili2:
                         await interaction.user.remove_roles(interaction.guild.get_role(Rili1))
-                        if role_id == Rili3:
-                            await interaction.user.remove_roles(interaction.guild.get_role(Rili2))
+                    elif role_id == Rili3:
+                        await interaction.user.remove_roles(interaction.guild.get_role(Rili1))
+                        await interaction.user.remove_roles(interaction.guild.get_role(Rili2))
                     await interaction.user.add_roles(role)
                     jopnik_data['balance'] += price * commission / 100
                     with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
                         json.dump(jopnik_data, f)
                     embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
                     view = View()
-                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="roleback")
                     async def back_callback(interaction: discord.Interaction):
+                        print("Кнопка 'нет баланса' нажата")
+                        print("jopnik_embed:", jopnik_embed)
+                        print("jopnik_view:", jopnik_view)
                         await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
                     button1.callback = back_callback
                     view.add_item(button1)
@@ -961,91 +994,31 @@ async def jopnik(ctx):
                 else:
                     embed = discord.Embed(title="Недостаточно Жрунов", description="Вам не хватает Жрунов для покупки этого товара. Возвращайтесь когда накопите.")
                     view = View()
-                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
+                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="roleback")
                     async def back_callback(interaction: discord.Interaction):
+                        print("Кнопка 'назад' нажата")
+                        print("jopnik_embed:", jopnik_embed)
+                        print("jopnik_view:", jopnik_view)
                         await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
                     button1.callback = back_callback
                     view.add_item(button1)
-                    await interaction.response.edit_message(embed=embed, view=view)
-
-            elif Rili1 in user_roles and role_id == Rili2:
-                embed = discord.Embed(title="Вы можете купить роль выше рангом.")
-                view = View()
-                button1 = Button(label="Купить", style=discord.ButtonStyle.green, custom_id="buy")
-                async def buy_callback(interaction: discord.Interaction):
-                    bank.decrement_balance(user_id, price_with_commission)
-                    await interaction.user.add_roles(role)
-                    jopnik_data['balance'] += price * commission / 100
-                    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
-                        json.dump(jopnik_data, f)
-                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
-                    view = View()
-                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-                    async def back_callback(interaction: discord.Interaction):
-                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-                    button1.callback = back_callback
-                    view.add_item(button1)
-                    await interaction.response.edit_message(embed=embed, view=view)
-
-            elif Rili2 in user_roles and role_id == Rili3:
-                embed = discord.Embed(title="Вы можете купить роль выше рангом.")
-                view = View()
-                button1 = Button(label="Купить", style=discord.ButtonStyle.green, custom_id="buy")
-                async def buy_callback(interaction: discord.Interaction):
-                    bank.decrement_balance(user_id, price_with_commission)
-                    await interaction.user.add_roles(role)
-                    jopnik_data['balance'] += price * commission / 100
-                    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jopnik.json', 'w') as f:
-                        json.dump(jopnik_data, f)
-                    embed = discord.Embed(title="Спасибо за покупку!", description=f"Вы успешно купили {item} за {price_with_commission} Жрунов")
-                    view = View()
-                    button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-                    async def back_callback(interaction: discord.Interaction):
-                        await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-                    button1.callback = back_callback
-                    view.add_item(button1)
-                    await interaction.response.edit_message(embed=embed, view=view)
-                button1.callback = buy_callback
-                view.add_item(button1)
-                await interaction.response.edit_message(embed=embed, view=view)
-            elif Rili3 in user_roles and role_id in [Rili1, Rili2]:
-                embed = discord.Embed(title="Ошибка", description="Вы не можете купить роль ниже рангом, если у вас уже есть роль выше рангом.")
-                view = View()
-                button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-                async def back_callback(interaction: discord.Interaction):
-                    await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-                button1.callback = back_callback
-                view.add_item(button1)
                 await interaction.response.edit_message(embed=embed, view=view)
 
-            view = View()
-            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-            async def back_callback(interaction: discord.Interaction):
-                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-            button1.callback = back_callback
-            view.add_item(button1)
-            shop_view.add_item(button1)
 
-            view = View()
-            button1 = Button(label="Назад", style=discord.ButtonStyle.red, custom_id="back")
-            async def back_callback(interaction: discord.Interaction):
-                await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
-            button1.callback = back_callback
-            shop_view.add_item(button1)
-                
-            button2.callback = shop_callback2
-            button3.callback = shop_callback2
-            button4.callback = shop_callback2
 
-            shop_view.add_item(button1)
-            shop_view.add_item(button2)
-            shop_view.add_item(button3)
-            shop_view.add_item(button4)
+        button1.callback = shop_callback2
+        button2.callback = shop_callback2
+        button3.callback = shop_callback2
+        button4.callback = shop_callback2
 
-            jopnik_embed = shop_embed
-            jopnik_view = shop_view
-            await interaction.response.edit_message(embed=shop_embed, view=shop_view)
+        shop_view.add_item(button1)
+        shop_view.add_item(button2)
+        shop_view.add_item(button3)
+        shop_view.add_item(button4)
 
+        jopnik_embed = shop_embed
+        jopnik_view = shop_view
+        await interaction.response.edit_message(embed=shop_embed, view=shop_view)
 ############
     async def reputation_callback(interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -1076,7 +1049,6 @@ async def jopnik(ctx):
         await interaction.response.edit_message(embed=embed, view=view)
 
 
-
     button1.callback = button_callback
     button2.callback = button_callback
 
@@ -1102,6 +1074,7 @@ def update_commission():
         json.dump(jopnik_data, f)
 
 schedule.every().day.at("00:00").do(update_commission)
+
 
 
 ###
