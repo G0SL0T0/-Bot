@@ -1075,6 +1075,48 @@ def update_commission():
 
 schedule.every().day.at("00:00").do(update_commission)
 
+###########################################################
+#################### PROFILE ##############################
+
+@bot.command(name='профиль')
+async def profile(ctx):
+    user_id = ctx.author.id
+    bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
+    balance = bank.get_balance(user_id)
+    try:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r') as f:
+            first_jrun_dates = json.load(f)
+    except FileNotFoundError:
+        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
+            json.dump({}, f)
+        first_jrun_dates = {}
+    first_jrun_date = first_jrun_dates.get(str(user_id), None)
+    if first_jrun_date:
+        now = datetime.datetime.now(datetime.timezone.utc)
+        first_jrun_date_obj = datetime.datetime.strptime(first_jrun_date, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
+        days_since_first_jrun = (now - first_jrun_date_obj).days
+    else:
+        days_since_first_jrun = 0
+    try:
+        with open(TOP_LIST_FILE, "r") as file:
+            top_list = json.load(file)
+            for user_info in top_list:
+                if user_info['никнейм'] == bot.get_user(user_id).name:
+                    asses = user_info['жопки']
+                    break
+            else:
+                asses = 0
+    except FileNotFoundError:
+        asses = 0
+    embed = discord.Embed(title="Профиль", description=f"Профиль пользователя {ctx.author.mention}")
+    embed.set_thumbnail(url=ctx.author.avatar_url)
+    embed.add_field(name="Никнейм", value=ctx.author.name, inline=False)
+    embed.add_field(name="Баланс Жрунов", value=balance, inline=False)
+    embed.add_field(name="Баланс Жопок", value=asses, inline=False)
+    embed.add_field(name="Дней с первого жруна", value=days_since_first_jrun, inline=False)
+    await ctx.send(embed=embed)
+
+
 
 
 ###
