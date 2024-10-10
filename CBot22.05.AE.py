@@ -404,7 +404,10 @@ async def send_private_message(member, content):
         await member.send(content)
     except discord.Forbidden:
         await ctx.send(f"Невозможно отправить личное сообщение пользователю {member.display_name}.")
-        
+
+
+#######
+
 ################################################################################################
 
 schedule.every().day.at("00:00").do(reset_last_message_time)
@@ -890,7 +893,7 @@ async def jopnik(ctx):
     embed.add_field(name="Магазин", value="Предлагаемые товары", inline=False)
     embed.add_field(name="Репутация", value="Отношение Жопника к тебе", inline=False)
     embed.add_field(name="Комиссия", value=f"Сегодняшняя комиссия: ~{jopnik_data['commission']}%", inline=False)
-    # #
+
     view = View()
     button1 = Button(label="Магазин", style=discord.ButtonStyle.green, custom_id="shop")
     button2 = Button(label="Репутация", style=discord.ButtonStyle.green, custom_id="reputation")
@@ -923,7 +926,11 @@ async def jopnik(ctx):
         async def back_callback(interaction: discord.Interaction):
             print("Кнопка 'назад' нажата")
             await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+        async def back_to_jopnik(interaction: discord.Interaction):
+            await interaction.response.edit_message(embed=jopnik_embed, view=jopnik_view)
+
         button1.callback = back_callback
+        button1.callback = back_to_jopnik
 #############
         print ("Шоп калбек 2")
         async def shop_callback2(interaction: discord.Interaction):
