@@ -239,18 +239,31 @@ def give_jrun_for_presence(user):
                 with open(DATA_DIR + 'reaction_data.json', 'w') as f:
                     json.dump(first_jrun_dates, f)
                     
-def set_first_jrun_date(user): # дата получения первого жруна
-    try:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f:
-            first_jrun_dates = json.load(f)
-    except FileNotFoundError:
-        with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
-            json.dump({}, f)
-        first_jrun_dates = {}
-    now = datetime.datetime.now(datetime.timezone.utc)
-    first_jrun_dates[str(user.id)] = now.strftime('%Y-%m-%d %H:%M:%S.%f')
-    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
-        json.dump(first_jrun_dates, f)
+def set_first_jrun_date(user_id):
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/jrun_balance.json', 'r+') as f_balance:
+        try:
+            jrun_balance = json.load(f_balance)
+        except json.JSONDecodeError:
+            jrun_balance = {}
+    print("Опа человечек")
+    if str(user_id) not in jrun_balance:
+        print("Человечка нет в списках")
+        return  # если пользователя нет в jrun_balance, игнорируем запрос
+    print("Человечек прошел условия")
+    with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r+') as f_date:
+        try:
+            first_jrun_dates = json.load(f_date)
+        except json.JSONDecodeError:
+            first_jrun_dates = {}
+
+        if str(user_id) not in first_jrun_dates:
+            current_date = datetime.datetime.now(datetime.timezone.utc)
+            first_jrun_date = current_date.strftime('%Y-%m-%d %H:%M:%S.%f')
+            first_jrun_dates[str(user_id)] = first_jrun_date
+            f_date.seek(0)
+            json.dump(first_jrun_dates, f_date)
+            f_date.truncate()
+
 
 ################################################################################################
 ################################################################################################
@@ -391,6 +404,7 @@ async def send_private_message(member, content):
         await member.send(content)
     except discord.Forbidden:
         await ctx.send(f"Невозможно отправить личное сообщение пользователю {member.display_name}.")
+        
 ################################################################################################
 
 schedule.every().day.at("00:00").do(reset_last_message_time)
@@ -422,6 +436,8 @@ async def on_message(message):
         return
 
     user_id = message.author.id
+    print("Это нам нужно")
+    set_first_jrun_date(user_id)
     moderator_roles = ["Чудо", "Сфера", "Влад", "роль1", "Берсерк"]
     is_moderator = any(role.name in moderator_roles for role in message.author.roles)
 
@@ -449,6 +465,9 @@ async def on_message(message):
     if update_last_message_time(message.author.id):
         give_jrun_for_message(message.author.id, message.guild.id, message)
     await bot.process_commands(message)
+    user_id = message.author.id
+    print("Опа, книжечка")
+    set_first_jrun_date(user_id)
 
 @bot.event #Выдача жруна за реакцию
 async def on_reaction_add(reaction, user):
@@ -1080,29 +1099,23 @@ schedule.every().day.at("00:00").do(update_commission)
 
 @bot.command(name='профиль')
 async def profile(ctx):
-    print("Команда Профиль")
     user_id = ctx.author.id
     bank = Bank('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/Jrun_balance.json')
     balance = bank.get_balance(user_id)
-    print("Переменные Профиля загруженны")
     try:
         with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'r') as f:
             first_jrun_dates = json.load(f)
-            print("Файл с первый жруном открылся")
     except FileNotFoundError:
         with open('C:/Users/APM_1/Documents/GitHub/ChudoBot/JavaS/first_jrun_date.json', 'w') as f:
             json.dump({}, f)
-            print("Файл первый жрун нулевой")
         first_jrun_dates = {}
     first_jrun_date = first_jrun_dates.get(str(user_id), None)
-    print("Условия")
     if first_jrun_date:
         now = datetime.datetime.now(datetime.timezone.utc)
         first_jrun_date_obj = datetime.datetime.strptime(first_jrun_date, '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=datetime.timezone.utc)
         days_since_first_jrun = (now - first_jrun_date_obj).days
     else:
         days_since_first_jrun = 0
-    print("Конец условий")
     try:
         with open(TOP_LIST_FILE, "r") as file:
             top_list = json.load(file)
@@ -1114,19 +1127,12 @@ async def profile(ctx):
                 asses = 0
     except FileNotFoundError:
         asses = 0
-    print("Вывод сообщения")
     embed = discord.Embed(title="Профиль", description=f"Профиль пользователя {ctx.author.mention}")
-    print("Вывод сообщения 2")
-    embed.set_thumbnail(url=ctx.author.avatar_url)
-    print("Вывод сообщения 3")
+    embed.set_thumbnail(url=ctx.author.display_avatar.url)
     embed.add_field(name="Никнейм", value=ctx.author.name, inline=False)
-    print("Вывод сообщения 4")
     embed.add_field(name="Баланс Жрунов", value=balance, inline=False)
-    print("Вывод сообщения 5")
     embed.add_field(name="Баланс Жопок", value=asses, inline=False)
-    print("Вывод сообщения 6")
     embed.add_field(name="Дней с первого жруна", value=days_since_first_jrun, inline=False)
-    print("сообщение закончилось")
     await ctx.send(embed=embed)
 
 
