@@ -210,4 +210,4 @@ async def on_command_error(ctx, error):
 
 
 # Токен
-bot.run("MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw") 
+
