@@ -391,4 +391,4 @@ async def получение_жрунов(ctx):
 #
 
 # Токен
-bot.run("MTIzMzAyMTQ4NzE3MTEwODkwNQ.GJHW7F.XZRRzqVMFKD4MW0N5yVzjJIfwFZdXuVICmWcRw") 
+
